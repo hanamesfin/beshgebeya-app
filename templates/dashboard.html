@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - BeshGebeya{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>🏪 Dashboard</h1>
+    <div class="header-actions">
+
+        <a href="{{ url_for('admin_panel') }}" class="btn-secondary">👨‍💼 Admin Panel</a>
+        <button onclick="resetDatabase()" class="btn-danger">🗑️ Delete All Products & Inventory</button>
+        <a href="{{ url_for('generate_alerts') }}" class="btn-primary">🔔 Generate Alerts</a>
+    </div>
+</div>
+
+
+<div class="section">
+    <h2>⚠️ Products Expiring Soon (0–90 Days)</h2>
+
+    {% if expiring_0_90 %}
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Product</th>
+                <th>Quantity</th>
+                <th>Expiry Date</th>
+                <th>Days Left</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in expiring_0_90 %}
+            {% set days_left = (item.expiry_date - now).days %}
+            <tr class="{% if days_left <= 30 %}row-expired{% else %}row-expiring{% endif %}">
+                <td><strong>{{ item.product.name }}</strong></td>
+                <td>{{ item.quantity_on_hand }} units</td>
+                <td>{{ item.expiry_date.strftime('%Y-%m-%d') }}</td>
+                <td>
+                    {% if days_left <= 30 %} <span class="badge badge-critical">{{ days_left }} days</span>
+                        {% else %}
+                        <span class="badge badge-warning">{{ days_left }} days</span>
+                        {% endif %}
+                </td>
+                <td><span class="badge badge-{{ item.status|lower }}">{{ item.status }}</span></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="empty-state">No products expiring in the next 90 days</p>
+    {% endif %}
+</div>
+
+
+<div class="section">
+    <h2>📅 Products Expiring Later (90–180 Days)</h2>
+
+    {% if expiring_180 %}
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Product</th>
+                <th>Quantity</th>
+                <th>Expiry Date</th>
+                <th>Days Left</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in expiring_180 %}
+            {% set days_left = (item.expiry_date - now).days %}
+            <tr class="row-expiring">
+                <td><strong>{{ item.product.name }}</strong></td>
+                <td>{{ item.quantity_on_hand }} units</td>
+                <td>{{ item.expiry_date.strftime('%Y-%m-%d') }}</td>
+                <td>
+                    <span class="badge badge-warning">{{ days_left }} days</span>
+                </td>
+                <td><span class="badge badge-{{ item.status|lower }}">{{ item.status }}</span></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="empty-state">No products expiring between 90 and 180 days</p>
+    {% endif %}
+</div>
+
+
+<div class="section">
+    <h2>🔔 Active Alerts</h2>
+    {% if alerts %}
+    <div class="alerts-list">
+        {% for alert in alerts %}
+        <div class="alert-item alert-{{ alert.type|lower }}">
+            <span class="alert-icon">
+                {% if alert.type == 'LOW_STOCK' %}⚠️
+                {% elif alert.type == 'NEAR_EXPIRY' %}⏰
+                {% else %}🚫{% endif %}
+            </span>
+            <div class="alert-content">
+                <p>{{ alert.message }}</p>
+                <small>{{ alert.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty-state">No active alerts</p>
+    {% endif %}
+</div>
+
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function resetDatabase() {
+        if (!confirm("⚠️ CAUTION: This will PERMANENTLY DELETE all products and all inventory records. This cannot be undone.\n\nAre you absolutely sure you want to proceed?")) {
+            return;
+        }
+
+        // Double confirmation for extreme safety
+        const verification = prompt("To confirm, please type 'DELETE ALL' below:");
+        if (verification !== 'DELETE ALL') {
+            alert("Verification failed. Nothing was deleted.");
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/admin/reset-database', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                alert("✅ Database has been cleared successfully.");
+                window.location.reload();
+            } else {
+                alert("❌ Error resetting database: " + result.error);
+            }
+        } catch (error) {
+            console.error("Error:", error);
+            alert("❌ A network error occurred while trying to reset the database.");
+        }
+    }
+</script>
+{% endblock %}

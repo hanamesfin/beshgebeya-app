@@ -1,0 +1,6 @@
+name,barcode,sku,price,quantity,category,brand,supplier
+Milk,123456,MILK-001,45,10,Dairy,Local,SuppA
+Bread,654321,BREAD-001,30,20,Bakery,Fresh,SuppB
+Orange,,ORANGE-001,10,15,Fruits,,
+Invalid Price,999,INV-001,not_a_number,5,Misc,,
+Missing Name,,MIS-001,10,5,Misc,,

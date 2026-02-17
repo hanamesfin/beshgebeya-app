@@ -1,0 +1,22 @@
+<products>
+    <product>
+        <name>Banana</name>
+        <barcode>10002000</barcode>
+        <price>15.5</price>
+        <quantity>50</quantity>
+        <category>Fruits</category>
+        <brand>Organic</brand>
+    </product>
+    <product>
+        <name>Apple</name>
+        <barcode>10002001</barcode>
+        <price>20</price>
+        <quantity>30</quantity>
+        <category>Fruits</category>
+    </product>
+    <product>
+        <name>Incomplete Item</name>
+        <price>free</price>
+        <quantity>-5</quantity>
+    </product>
+</products>

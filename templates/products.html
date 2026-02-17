@@ -1,0 +1,379 @@
+{% extends "base.html" %}
+
+{% block title %}Products - BeshGebeya{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>🥬 Products</h1>
+    <div class="header-actions">
+        <button onclick="toggleSearch()" class="btn-secondary">🔍 Search Products</button>
+        <button onclick="toggleForm()" class="btn-primary">+ Add Product</button>
+    </div>
+</div>
+
+<!-- Product Search -->
+<div id="product-search" class="form-container" style="display:none;">
+    <h2>🔍 Search Products</h2>
+    <div class="scanner-box">
+        <input type="text" id="search-input" placeholder="Search by name, SKU, or barcode..." autofocus
+            oninput="ProductManager.search(this.value)">
+    </div>
+</div>
+
+<div id="product-form" class="form-container" style="display:none;">
+    <h2 id="form-title">Add New Product</h2>
+    <form id="product-form-element" onsubmit="ProductManager.save(event)">
+        <input type="hidden" name="product_id" id="product_id">
+        <div class="form-grid">
+            <div class="form-group">
+                <label>Product Name (English) *</label>
+                <input type="text" name="name" required placeholder="e.g., Tomato">
+            </div>
+            <div class="form-group">
+                <label>Local Name (Amharic)</label>
+                <input type="text" name="local_name" placeholder="e.g., ቲማቲም">
+            </div>
+            <div class="form-group">
+                <label>SKU </label>
+                <input type="text" name="sku" placeholder="e.g., VEG-001">
+            </div>
+            <div class="form-group">
+                <label>Local Code</label>
+                <input type="text" name="local_code" placeholder="e.g., LC-001">
+                <small>Internal tracking code</small>
+            </div>
+            <div class="form-group">
+                <label>Barcode</label>
+                <input type="text" name="barcode" placeholder="e.g., 123456789012">
+            </div>
+            <div class="form-group">
+                <label>Category</label>
+                <input type="text" name="category" placeholder="e.g., Vegetables, Fruits">
+            </div>
+            <div class="form-group">
+                <label>Brand</label>
+                <input type="text" name="brand" placeholder="Optional">
+            </div>
+            <div class="form-group">
+                <label>Supplier</label>
+                <input type="text" name="supplier" placeholder="Supplier name">
+            </div>
+            <div class="form-group">
+                <label>Internal Code</label>
+                <input type="text" name="internal_code" placeholder="Internal system code">
+            </div>
+        </div>
+
+        <div class="form-grid" style="margin-top: 20px;">
+            <div class="form-group">
+                <label>Size Value</label>
+                <input type="number" step="0.01" name="size_value" placeholder="e.g., 1, 500">
+            </div>
+            <div class="form-group">
+                <label>Size Unit</label>
+                <input type="text" name="size_unit" placeholder="e.g., Lit, ml, gm">
+            </div>
+            <div class="form-group">
+                <label>Pack Quantity</label>
+                <input type="number" name="pack_quantity" placeholder="e.g., 12, 24">
+            </div>
+            <div class="form-group">
+                <label>Pack Unit</label>
+                <input type="text" name="pack_unit" placeholder="e.g., Pcs, Pack">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Description</label>
+            <textarea name="description" rows="3" placeholder="Product description..."></textarea>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn-primary" id="submit-btn">Create Product</button>
+            <button type="button" onclick="ProductManager.resetForm()" class="btn-secondary">Cancel</button>
+        </div>
+    </form>
+</div>
+
+<div class="section">
+    {% if products %}
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th style="width: 25%;">Name</th>
+                <th style="width: 15%;">SKU / Code</th>
+                <th style="width: 15%;">Barcode</th>
+                <th style="width: 15%;">Size / Pack</th>
+                <th style="width: 15%;">Category</th>
+                <th style="width: 15%;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for product in products %}
+            <tr>
+                <td>
+                    <div class="product-name-cell">
+                        <strong>{{ product.name }}</strong>
+                        <div class="local-name">{{ product.local_name or '' }}</div>
+                    </div>
+                </td>
+                <td>
+                    <code>{{ product.sku }}</code>
+                    {% if product.internal_code %}
+                    <div class="small-text">{{ product.internal_code }}</div>
+                    {% endif %}
+                </td>
+                <td><code>{{ product.barcode or '-' }}</code></td>
+                <td>
+                    <div class="specs-cell">
+                        {% if product.size_value %} <span>{{ product.size_value }} {{ product.size_unit }}</span> {%
+                        endif %}
+                        {% if product.pack_quantity %} <span class="divider">|</span> <span>{{ product.pack_quantity }}
+                            {{ product.pack_unit }}</span> {% endif %}
+                    </div>
+                </td>
+                <td><span class="category-badge">{{ product.category or '-' }}</span></td>
+                <td>
+                    <div class="action-buttons">
+                        <button class="btn-action btn-action-edit edit-product-btn" data-id="{{ product.id }}"
+                            title="Edit">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                            </svg>
+                        </button>
+                        <button class="btn-action btn-action-delete delete-product-btn" data-id="{{ product.id }}"
+                            title="Delete">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path
+                                    d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
+                                </path>
+                                <line x1="10" y1="11" x2="10" y2="17"></line>
+                                <line x1="14" y1="11" x2="14" y2="17"></line>
+                            </svg>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="empty-state">No products yet. Add your first product!</p>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function toggleForm() {
+        ProductManager.resetForm();
+        var form = document.getElementById('product-form');
+        var search = document.getElementById('product-search');
+        search.style.display = 'none';
+        form.style.display = form.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function toggleSearch() {
+        var form = document.getElementById('product-form');
+        var search = document.getElementById('product-search');
+        form.style.display = 'none';
+        search.style.display = search.style.display === 'none' ? 'block' : 'none';
+        if (search.style.display === 'block') {
+            document.getElementById('search-input').focus();
+        } else {
+            // Reset search when closing
+            document.getElementById('search-input').value = '';
+            ProductManager.search('');
+        }
+    }
+
+    const ProductManager = {
+        resetForm: function () {
+            const form = document.getElementById('product-form-element');
+            form.reset();
+            document.getElementById('product_id').value = '';
+            document.getElementById('form-title').innerText = 'Add New Product';
+            document.getElementById('submit-btn').innerText = 'Create Product';
+            const container = document.getElementById('product-form');
+            if (container.style.display === 'block') {
+                // Keep it open if we're just resetting, but toggleForm handles the actual hide
+            }
+        },
+
+        edit: function (productId) {
+            // Show form
+            const container = document.getElementById('product-form');
+            container.style.display = 'block';
+            document.getElementById('form-title').innerText = 'Edit Product';
+            document.getElementById('submit-btn').innerText = 'Update Product';
+
+            // Fetch data
+            fetch('/api/products/' + productId)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const p = data.product;
+                        const form = document.getElementById('product-form-element');
+
+                        form.product_id.value = p.id;
+                        form.name.value = p.name || '';
+                        form.local_name.value = p.local_name || '';
+                        form.sku.value = p.sku || '';
+                        form.local_code.value = p.local_code || '';
+                        form.barcode.value = p.barcode || '';
+                        form.category.value = p.category || '';
+                        form.brand.value = p.brand || '';
+                        form.supplier.value = p.supplier || '';
+                        form.internal_code.value = p.internal_code || '';
+                        form.size_value.value = p.size_value || '';
+                        form.size_unit.value = p.size_unit || '';
+                        form.pack_quantity.value = p.pack_quantity || '';
+                        form.pack_unit.value = p.pack_unit || '';
+                        form.description.value = p.description || '';
+
+                        // Scroll to form
+                        container.scrollIntoView({ behavior: 'smooth' });
+                    } else {
+                        alert('Error fetching product: ' + data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Failed to fetch product details');
+                });
+        },
+
+        save: function (event) {
+            event.preventDefault();
+            const form = event.target;
+            const productId = form.product_id.value;
+            const isUpdate = productId !== '';
+
+            const formData = {
+                name: form.name.value,
+                local_name: form.local_name.value,
+                sku: form.sku.value,
+                local_code: form.local_code.value,
+                barcode: form.barcode.value,
+                category: form.category.value,
+                brand: form.brand.value,
+                supplier: form.supplier.value,
+                internal_code: form.internal_code.value,
+                size_value: form.size_value.value ? parseFloat(form.size_value.value) : null,
+                size_unit: form.size_unit.value,
+                pack_quantity: form.pack_quantity.value ? parseInt(form.pack_quantity.value) : null,
+                pack_unit: form.pack_unit.value,
+                description: form.description.value
+            };
+
+            const url = isUpdate ? '/api/products/' + productId : '/products';
+            const method = isUpdate ? 'PUT' : 'POST';
+
+            // If it's a normal POST to /products, we let it happen if we want flash messages,
+            // but for a smooth experience let's use fetch for both or stay consistent.
+            // However, the /products route expects form data, not JSON.
+            // Let's use fetch with JSON for Update and normal form submit for Create to keep existing flash logic.
+
+            if (!isUpdate) {
+                form.action = '/products';
+                form.method = 'POST';
+                form.submit();
+                return;
+            }
+
+            fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData)
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(isUpdate ? 'Product updated successfully!' : 'Product created successfully!');
+                        location.reload();
+                    } else {
+                        alert('Error: ' + data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while saving the product.');
+                });
+        },
+
+        search: function (query) {
+            // Debounce or at least clear previous timeout if needed
+            if (this.searchTimeout) clearTimeout(this.searchTimeout);
+
+            this.searchTimeout = setTimeout(() => {
+                query = query.toLowerCase().trim();
+                const rows = document.querySelectorAll('.data-table tbody tr');
+                let foundCount = 0;
+
+                rows.forEach(row => {
+                    const text = row.innerText.toLowerCase();
+                    if (text.includes(query)) {
+                        row.style.display = '';
+                        foundCount++;
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+
+                // Handle empty state if needed
+                const emptyMsg = document.querySelector('.empty-search-msg');
+                if (foundCount === 0 && query !== '') {
+                    if (!emptyMsg) {
+                        const msg = document.createElement('p');
+                        msg.className = 'empty-search-msg empty-state';
+                        msg.innerText = 'No products found matching your search.';
+                        document.querySelector('.data-table').after(msg);
+                    }
+                } else if (emptyMsg) {
+                    emptyMsg.remove();
+                }
+            }, 150); // Small delay for smoothness
+        },
+
+        delete: function (productId) {
+            if (confirm('Are you sure you want to delete this product?')) {
+                fetch('/api/products/' + productId, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' }
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert('Product deleted successfully');
+                            location.reload();
+                        } else {
+                            alert('Error deleting product: ' + (data.error || 'Unknown error'));
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Failed to delete product');
+                    });
+            }
+        }
+    };
+
+    // Attach event listeners for robust handling
+    document.addEventListener('click', function (e) {
+        const editBtn = e.target.closest('.edit-product-btn');
+        const deleteBtn = e.target.closest('.delete-product-btn');
+
+        if (editBtn) {
+            const id = editBtn.dataset.id;
+            console.log('Editing product:', id);
+            ProductManager.edit(id);
+        } else if (deleteBtn) {
+            const id = deleteBtn.dataset.id;
+            console.log('Deleting product:', id);
+            ProductManager.delete(id);
+        }
+    });
+</script>
+{% endblock %}

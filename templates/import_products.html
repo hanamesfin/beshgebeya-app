@@ -1,0 +1,216 @@
+{% extends 'base.html' %}
+
+{% block title %}Import Products - BeshGebeya{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="page-header">
+        <h1>🚀 Import Products</h1>
+        <div class="header-actions">
+            <button onclick="toggleView('history')" class="btn-secondary" id="btn-history">📜 Import History</button>
+            <button onclick="toggleView('form')" class="btn-primary" id="btn-new-import" style="display:none;">📤 New
+                Import</button>
+        </div>
+    </div>
+
+    {% if added is defined %}
+    <div class="section" id="import-results">
+        <h2 style="color: var(--blue-900); margin-bottom: 20px;">📊 Import Results</h2>
+        <div class="metrics-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;">
+            <div class="metric-card"
+                style="background: var(--blue-50); padding: 25px; border-radius: var(--radius-lg); text-align: center; border: 1px solid var(--blue-100);">
+                <div style="font-size: 2.5rem; font-weight: 800; color: var(--blue-600); line-height: 1;">{{ added }}
+                </div>
+                <div style="margin-top: 10px; font-weight: 600; color: var(--gray-700);">New Products</div>
+            </div>
+            <div class="metric-card"
+                style="background: var(--green-light); padding: 25px; border-radius: var(--radius-lg); text-align: center; border: 1px solid rgba(22, 163, 74, 0.1);">
+                <div style="font-size: 2.5rem; font-weight: 800; color: var(--green); line-height: 1;">{{ merged }}
+                </div>
+                <div style="margin-top: 10px; font-weight: 600; color: var(--gray-700);">Merged / Updated</div>
+            </div>
+            <div class="metric-card"
+                style="background: var(--gray-100); padding: 25px; border-radius: var(--radius-lg); text-align: center; border: 1px solid var(--gray-200);">
+                <div style="font-size: 2.5rem; font-weight: 800; color: var(--gray-600); line-height: 1;">{{ failed }}
+                </div>
+                <div style="margin-top: 10px; font-weight: 600; color: var(--gray-700);">Failures</div>
+            </div>
+        </div>
+
+        {% if log_file %}
+        <div class="alert alert-warning"
+            style="margin-top: 25px; display: flex; align-items: center; justify-content: space-between; padding: 20px; border-radius: var(--radius-md);">
+            <span>⚠️ Issues found in {{ failed }} rows. Check the log for details.</span>
+            <a href="{{ url_for('download_import_log', filename=log_file) }}" class="btn-secondary"
+                style="white-space: nowrap;">📥 Download Log</a>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <div id="import-form-view">
+        <div class="section">
+            <h2>Upload File</h2>
+            <form action="{{ url_for('import_products') }}" method="POST" enctype="multipart/form-data"
+                id="main-upload-form">
+                <div class="upload-area">
+                    <input type="file" id="fileElem" name="file" accept=".xlsx,.xls,.csv" hidden
+                        onchange="handleFiles(this.files)">
+                    <label for="fileElem" class="upload-box" id="drop-area">
+                        <div class="upload-icon">📄</div>
+                        <p>Drag & Drop Excel/CSV Here or Click to Upload</p>
+                        <div id="file-name-display" class="small"
+                            style="margin-top: 10px; color: var(--blue-600); font-weight: 600;"></div>
+                    </label>
+                </div>
+                <div class="form-actions" style="margin-top: 20px;">
+                    <button type="submit" class="btn-primary" id="import-submit-btn"
+                        style="width: 100%; padding: 15px; font-size: 1.1rem;">🚀 Start Import</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="section">
+            <h2>Google Spreadsheet Import</h2>
+            <form action="{{ url_for('import_products') }}" method="POST">
+                <div class="form-group">
+                    <label for="sheet_url">Google Sheet Public Link</label>
+                    <input type="url" name="sheet_url" id="sheet_url"
+                        placeholder="https://docs.google.com/spreadsheets/d/..." required>
+                    <small>Make sure the sheet is shared as "Anyone with the link can view"</small>
+                </div>
+                <button type="submit" class="btn-primary">Import from Google Sheets</button>
+            </form>
+        </div>
+
+        <div class="section">
+            <h2>Expected Format</h2>
+            <div class="form-grid">
+                <div>
+                    <h3>Excel (.xlsx / .xls)</h3>
+                    <p>The first row must contain headers. Columns can be in any order:</p>
+                    <code>Item Description, Barcode, Code, Stock, Category</code>
+                    <p style="margin-top: 10px;"><small>Note: <b>Item Description</b> is mandatory.</small></p>
+                </div>
+                <div>
+                    <h3>CSV Columns</h3>
+                    <p>Comma-separated values with headers in the first row:</p>
+                    <code>Item Description, Barcode, Code, Stock, Category</code>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="import-history-view" style="display:none;">
+        <div class="section">
+            <h2>Recent Import Activity</h2>
+            <p class="empty-state">Import history log feature coming soon. Recent snapshots will appear here.</p>
+        </div>
+    </div>
+</div>
+
+<style>
+    .upload-box {
+        border: 2px dashed var(--blue-600);
+        padding: 60px 40px;
+        text-align: center;
+        border-radius: var(--radius-lg);
+        background-color: var(--blue-50);
+        transition: all var(--transition-base);
+        display: block;
+        cursor: pointer;
+    }
+
+    .upload-box:hover {
+        background-color: var(--blue-100);
+        border-color: var(--blue-800);
+        transform: translateY(-2px);
+    }
+
+    .upload-box.dragover {
+        border-color: var(--green);
+        background-color: var(--green-light);
+        transform: scale(1.02);
+    }
+
+    .upload-icon {
+        font-size: 3rem;
+        margin-bottom: var(--space-md);
+    }
+
+    .upload-box p {
+        margin-bottom: var(--space-sm);
+        font-weight: 600;
+        color: var(--blue-900);
+    }
+
+    .upload-box .small {
+        font-weight: 400;
+        color: var(--gray-600);
+        margin-bottom: var(--space-lg);
+    }
+</style>
+
+<script>
+    function toggleView(view) {
+        const formView = document.getElementById('import-form-view');
+        const historyView = document.getElementById('import-history-view');
+        const btnHistory = document.getElementById('btn-history');
+        const btnNewImport = document.getElementById('btn-new-import');
+
+        if (view === 'history') {
+            formView.style.display = 'none';
+            historyView.style.display = 'block';
+            btnHistory.style.display = 'none';
+            btnNewImport.style.display = 'block';
+        } else {
+            formView.style.display = 'block';
+            historyView.style.display = 'none';
+            btnHistory.style.display = 'block';
+            btnNewImport.style.display = 'none';
+        }
+    }
+
+    let dropArea = document.getElementById("drop-area");
+    let fileElem = document.getElementById("fileElem");
+    let uploadForm = document.getElementById("main-upload-form");
+
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropArea.addEventListener(eventName, preventDefaults, false);
+    });
+
+    function preventDefaults(e) { e.preventDefault(); e.stopPropagation(); }
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropArea.addEventListener(eventName, (e) => dropArea.classList.add('dragover'), false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropArea.addEventListener(eventName, (e) => dropArea.classList.remove('dragover'), false);
+    });
+
+    dropArea.addEventListener('drop', (e) => {
+        let files = e.dataTransfer.files;
+        handleFiles(files);
+    }, false);
+
+    function handleFiles(files) {
+        if (files.length > 0) {
+            fileElem.files = files;
+            const fileNameDisplay = document.getElementById('file-name-display');
+            if (fileNameDisplay) { fileNameDisplay.innerText = "Selected: " + files[0].name; }
+        }
+    }
+
+    if (uploadForm) {
+        uploadForm.addEventListener('submit', function () {
+            const btn = document.getElementById('import-submit-btn');
+            if (btn) {
+                btn.innerHTML = 'Processing...';
+                btn.disabled = true;
+                btn.style.opacity = '0.7';
+            }
+        });
+    }
+</script>
+{% endblock %}

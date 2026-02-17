@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Panel - BeshGebeya{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>👨‍💼 Admin Dashboard</h1>
+</div>
+
+<div class="metrics-grid">
+    <div class="metric-card">
+        <div class="metric-icon">📦</div>
+        <div class="metric-content">
+            <h3>Total Products</h3>
+            <p class="metric-value">{{ total_products }}</p>
+        </div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-icon">📊</div>
+        <div class="metric-content">
+            <h3>Total Inventory</h3>
+            <p class="metric-value">{{ total_inventory }}</p>
+        </div>
+    </div>
+  
+    <div class="metric-card">
+        <div class="metric-icon">👥</div>
+        <div class="metric-content">
+            <h3>Total Users</h3>
+            <p class="metric-value">{{ users|length }}</p>
+        </div>
+    </div>
+</div>
+
+<div class="section">
+    <h2>🚨 Critical Alerts</h2>
+    {% if critical_alerts %}
+        <div class="alerts-list">
+            {% for alert in critical_alerts %}
+                <div class="alert-item alert-{{ alert.type|lower }}">
+                    <span class="alert-icon">
+                        {% if alert.type == 'LOW_STOCK' %}⚠️
+                        {% elif alert.type == 'NEAR_EXPIRY' %}⏰
+                        {% else %}🚫{% endif %}
+                    </span>
+                    <div class="alert-content">
+                        <p><strong>{{ alert.message }}</strong></p>
+                        {% if alert.quantity %}
+                            <small>Quantity: {{ alert.quantity }} units</small>
+                        {% endif %}
+                        {% if alert.days_until_expiry is not none %}
+                            <small> • Days until expiry: {{ alert.days_until_expiry }}</small>
+                        {% endif %}
+                        <small> • {{ alert.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="empty-state">No active alerts</p>
+    {% endif %}
+</div>
+
+<div class="section">
+    <h2>👥 User Management</h2>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Username</th>
+                <th>Email</th>
+                <th>Name</th>
+                <th>Role</th>
+                <th>Created</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user in users %}
+            <tr>
+                <td><strong>{{ user.username }}</strong></td>
+                <td>{{ user.email }}</td>
+                <td>{{ user.name }}</td>
+                <td>
+                    {% if user.is_admin %}
+                        <span class="badge badge-admin">Admin</span>
+                    {% else %}
+                        <span class="badge badge-user">User</span>
+                    {% endif %}
+                </td>
+                <td>{{ user.created_at.strftime('%Y-%m-%d') }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

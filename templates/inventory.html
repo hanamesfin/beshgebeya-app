@@ -1,0 +1,366 @@
+{% extends "base.html" %}
+
+{% block title %}Inventory - BeshGebeya{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>📦 Inventory Management</h1>
+    <div class="header-actions">
+        <button onclick="toggleScan()" class="btn-secondary">🔍 Scan Barcode</button>
+        <button onclick="toggleForm()" class="btn-primary">+ Add/Update Stock</button>
+    </div>
+</div>
+
+<!-- Barcode Scanner -->
+<div id="barcode-scanner" class="form-container" style="display:none;">
+    <h2>🔍 Scan Barcode or Enter Code</h2>
+    <div class="scanner-box">
+        <input type="text" id="scan-input" placeholder="Scan barcode or type local code..." autofocus
+            onkeypress="handleScan(event)">
+        <button onclick="searchProduct()" class="btn-primary">Search</button>
+    </div>
+    <div id="scan-result"></div>
+</div>
+
+<div id="inventory-form" class="form-container" style="display:none;">
+    <h2 id="form-title">Add/Update Inventory</h2>
+    <form id="inventory-form-element" onsubmit="InventoryManager.save(event)">
+        <input type="hidden" name="inventory_id" id="inventory_id">
+        <div class="form-grid">
+            <div class="form-group">
+                <label>Product *</label>
+                <select name="product_id" id="product_id" required>
+                    <option value="">Select product</option>
+                    {% for product in products %}
+                    <option value="{{ product.id }}" {% if selected_product_id and product.id==selected_product_id|int
+                        %}selected{% endif %}>
+                        {{ product.name }}
+                        {% if product.local_name %}({{ product.local_name }}){% endif %}
+                        - {{ product.local_code or product.sku }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Quantity *</label>
+                <input type="number" step="0.01" name="quantity_on_hand" min="0" required>
+            </div>
+            <div class="form-group">
+                <label>Unit of Measure</label>
+                <input type="text" name="unit_of_measure" placeholder="e.g., Pcs, Box, Carton">
+            </div>
+
+            <div class="form-group">
+                <label>Entry Date</label>
+                <input type="date" name="entry_date" value="{{ now.strftime('%Y-%m-%d') }}" readonly>
+                <small>Stock entry date (auto-filled)</small>
+            </div>
+            <div class="form-group">
+                <label>Expiry Date *</label>
+                <input type="date" name="expiry_date" required>
+            </div>
+            <div class="form-group">
+                <label>Batch Number</label>
+                <input type="text" name="batch_number" placeholder="e.g., BATCH-2024-001">
+            </div>
+            <div class="form-group">
+                <label>Status *</label>
+                <select name="status">
+                    <option value="AVAILABLE">Available</option>
+                    <option value="LOW_STOCK">Low Stock</option>
+                    <option value="EXPIRED">Expired</option>
+                    <option value="DISCONTINUED">Discontinued</option>
+                </select>
+            </div>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn-primary" id="submit-btn">Save Changes</button>
+            <button type="button" onclick="InventoryManager.resetForm()" class="btn-secondary">Cancel</button>
+        </div>
+    </form>
+</div>
+
+<div class="section">
+    <div class="inventory-info">
+        <h3>📊 Inventory sorted by expiry date (Expiring first)</h3>
+        <p class="info-text">⚠️ Products expiring soon are shown at the top</p>
+    </div>
+
+    {% if inventory %}
+    <div class="table-responsive">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th style="width: 25%;">Product</th>
+                    <th style="width: 15%;">Barcode / SKU</th>
+                    <th style="width: 15%;">Size / Pack</th>
+                    <th style="width: 20%;">Extra Info</th>
+                    <th style="width: 10%;">Qty</th>
+                    <th style="width: 10%;">Expiry</th>
+                    <th style="width: 10%;">Status</th>
+                    <th style="width: 5%;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in inventory %}
+                {% set days_left = (item.expiry_date - now).days if item.expiry_date else None %}
+                <tr
+                    class="{% if days_left and days_left < 0 %}row-expired{% elif days_left and days_left <= 7 %}row-expiring{% elif item.quantity_on_hand <= item.threshold_min %}row-warning{% endif %}">
+                    <td>
+                        <div class="product-name-cell">
+                            <strong>{{ item.product.name }}</strong>
+                            <div class="local-name">{{ item.product.local_name or '' }}</div>
+                        </div>
+                    </td>
+                    <td>
+                        <code>{{ item.product.barcode or '-' }}</code>
+                        <div class="small-text">{{ item.product.sku or '' }}</div>
+                    </td>
+                    <td>
+                        <div class="specs-cell">
+                            {% if item.unit_size %}<span>{{ item.unit_size }} {{ item.unit_measure }}</span>{% endif %}
+                            {% if item.pack_qty and item.pack_qty > 1 %}<span class="divider">|</span><span>{{
+                                item.pack_qty }} {{ item.pack_unit }}</span>{% endif %}
+                        </div>
+                    </td>
+                    <td><small>{{ item.extra_info or '-' }}</small></td>
+                    <td>
+                        <strong class="{% if item.quantity_on_hand <= item.threshold_min %}text-danger{% endif %}">
+                            {{ item.quantity_on_hand }}
+                        </strong>
+                    </td>
+                    <td>
+                        {% if item.expiry_date %}
+                        {{ item.expiry_date.strftime('%Y-%m-%d') }}
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="badge badge-{{ item.status|lower }}">{{ item.status }}</span>
+                    </td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="btn-action btn-action-edit edit-inventory-btn" data-id="{{ item.id }}"
+                                title="Edit">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                </svg>
+                            </button>
+                            <button class="btn-action btn-action-delete delete-inventory-btn" data-id="{{ item.id }}"
+                                title="Delete">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="3 6 5 6 21 6"></polyline>
+                                    <path
+                                        d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
+                                    </path>
+                                    <line x1="10" y1="11" x2="10" y2="17"></line>
+                                    <line x1="14" y1="11" x2="14" y2="17"></line>
+                                </svg>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="empty-state">No inventory records. Add stock to your products!</p>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function toggleForm() {
+        InventoryManager.resetForm();
+        var form = document.getElementById('inventory-form');
+        var scanner = document.getElementById('barcode-scanner');
+        scanner.style.display = 'none';
+        form.style.display = form.style.display === 'none' ? 'block' : 'none';
+    }
+
+    const InventoryManager = {
+        resetForm: function () {
+            const form = document.getElementById('inventory-form-element');
+            form.reset();
+            document.getElementById('inventory_id').value = '';
+            document.getElementById('form-title').innerText = 'Add/Update Inventory';
+            document.getElementById('submit-btn').innerText = 'Save Changes';
+        },
+
+        edit: function (inventoryId) {
+            const form = document.getElementById('inventory-form');
+            form.style.display = 'block';
+            document.getElementById('form-title').innerText = 'Edit Inventory Record';
+            document.getElementById('submit-btn').innerText = 'Update Record';
+
+            fetch('/api/inventory/' + inventoryId)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const inv = data.inventory;
+                        const f = document.getElementById('inventory-form-element');
+                        f.inventory_id.value = inv.id;
+                        f.product_id.value = inv.product_id;
+                        f.quantity_on_hand.value = inv.quantity_on_hand;
+                        f.batch_number.value = inv.batch_number || '';
+                        f.expiry_date.value = inv.expiry_date || '';
+                        f.status.value = inv.status || 'AVAILABLE';
+
+                        // New fields
+                        if (f.unit_of_measure) f.unit_of_measure.value = inv.unit_measure || '';
+
+                        form.scrollIntoView({ behavior: 'smooth' });
+                    } else {
+                        alert('Error: ' + data.error);
+                    }
+                })
+                .catch(err => {
+                    console.error('Error fetching inventory:', err);
+                    alert('Failed to load inventory details');
+                });
+        },
+
+        save: function (event) {
+            event.preventDefault();
+            const form = event.target;
+            const invId = form.inventory_id.value;
+            const isUpdate = invId !== '';
+
+            const data = {
+                product_id: form.product_id.value,
+                quantity_on_hand: parseFloat(form.quantity_on_hand.value),
+                expiry_date: form.expiry_date.value,
+                batch_number: form.batch_number.value,
+                status: form.status.value,
+                unit_measure: form.unit_of_measure ? form.unit_of_measure.value : null
+            };
+
+            if (!isUpdate) {
+                form.action = '/inventory';
+                form.method = 'POST';
+                form.submit();
+                return;
+            }
+
+            fetch('/api/inventory/' + invId, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Inventory updated successfully!');
+                        location.reload();
+                    } else {
+                        alert('Error: ' + data.error);
+                    }
+                })
+                .catch(err => {
+                    console.error('Error saving inventory:', err);
+                    alert('Failed to save inventory');
+                });
+        },
+
+        delete: function (inventoryId) {
+            if (!confirm('Are you sure you want to delete this inventory record?')) return;
+
+            fetch('/api/inventory/' + inventoryId, {
+                method: 'DELETE'
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Record deleted');
+                        location.reload();
+                    } else {
+                        alert('Error: ' + data.error);
+                    }
+                })
+                .catch(err => {
+                    console.error('Error deleting inventory:', err);
+                    alert('Failed to delete record');
+                });
+        }
+    };
+
+    function toggleScan() {
+        var form = document.getElementById('inventory-form');
+        var scanner = document.getElementById('barcode-scanner');
+        form.style.display = 'none';
+        scanner.style.display = scanner.style.display === 'none' ? 'block' : 'none';
+        if (scanner.style.display === 'block') {
+            document.getElementById('scan-input').focus();
+        }
+    }
+
+    function handleScan(event) {
+        if (event.key === 'Enter') {
+            searchProduct();
+        }
+    }
+
+    function searchProduct() {
+        var code = document.getElementById('scan-input').value.trim();
+        if (!code) return;
+
+        fetch('{{ url_for("search_product") }}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code: code })
+        })
+            .then(response => response.json())
+            .then(data => {
+                var resultDiv = document.getElementById('scan-result');
+                if (data.success) {
+                    resultDiv.innerHTML = `
+                <div class="scan-success">
+                    <h3>✅ Product Found!</h3>
+                    <p><strong>${data.product.name}</strong> ${data.product.local_name ? '(' + data.product.local_name + ')' : ''}</p>
+                    <p>Price: ${data.product.unit_price} ETB</p>
+                    <p>Current Stock: ${data.product.stock} units</p>
+                    <button onclick="addToInventory(${data.product.id})" class="btn-primary">Add Stock</button>
+                </div>
+            `;
+                } else {
+                    resultDiv.innerHTML = `
+                <div class="scan-error">
+                    <h3>❌ Product Not Found</h3>
+                    <p>No product found with code: ${code}</p>
+                </div>
+            `;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+    }
+
+    function addToInventory(productId) {
+        window.location.href = '{{ url_for("inventory") }}?product_id=' + productId;
+        toggleForm();
+    }
+
+    // Attach event listeners for robust handling
+    document.addEventListener('click', function (e) {
+        const editBtn = e.target.closest('.edit-inventory-btn');
+        const deleteBtn = e.target.closest('.delete-inventory-btn');
+
+        if (editBtn) {
+            const id = editBtn.dataset.id;
+            console.log('Editing inventory:', id);
+            InventoryManager.edit(id);
+        } else if (deleteBtn) {
+            const id = deleteBtn.dataset.id;
+            console.log('Deleting inventory:', id);
+            InventoryManager.delete(id);
+        }
+    });
+</script>
+{% endblock %}

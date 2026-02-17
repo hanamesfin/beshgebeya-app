@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+
+{% block title %}Sales - BeshGebeya{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>💳 Sales</h1>
+    <button onclick="toggleForm()" class="btn-primary">+ New Sale</button>
+</div>
+
+<div id="sale-form" class="form-container" style="display:none;">
+    <h2>Create New Sale</h2>
+    <div id="sale-items">
+        <div class="sale-item">
+            <select class="product-select" onchange="updateTotal()">
+                <option value="">Select product</option>
+                {% for product in products %}
+                <option value="{{ product.id }}" data-price="{{ product.unit_price }}">
+                    {{ product.name }} - {{ "{:,.2f}".format(product.unit_price) }} ETB
+                </option>
+                {% endfor %}
+            </select>
+            <input type="number" class="quantity-input" placeholder="Quantity" min="1" onchange="updateTotal()">
+            <span class="item-total">0.00 ETB</span>
+            <button type="button" onclick="removeItem(this)" class="btn-remove">✕</button>
+        </div>
+    </div>
+    <button type="button" onclick="addItem()" class="btn-secondary">+ Add Item</button>
+    
+    <div class="form-group" style="margin-top: 20px;">
+        <label>Payment Type</label>
+        <div class="radio-group">
+            <label><input type="radio" name="payment" value="CASH" checked> Cash</label>
+            <label><input type="radio" name="payment" value="CARD"> Card</label>
+            <label><input type="radio" name="payment" value="MOBILE"> Mobile Payment</label>
+        </div>
+    </div>
+    
+    <div class="sale-total">
+        <h3>Total: <span id="total-amount">0.00</span> ETB</h3>
+    </div>
+    
+    <div class="form-actions">
+        <button type="button" onclick="submitSale()" class="btn-primary">Complete Sale</button>
+        <button type="button" onclick="toggleForm()" class="btn-secondary">Cancel</button>
+    </div>
+</div>
+
+<div class="section">
+    <h2>Sales History</h2>
+    {% if sales %}
+        {% for sale in sales %}
+        <div class="sale-card">
+            <div class="sale-header">
+                <div>
+                    <h3>Sale #{{ sale.id }}</h3>
+                    <small>{{ sale.sale_date.strftime('%Y-%m-%d %H:%M') }}</small>
+                    <small> • {{ sale.user.name }} • {{ sale.branch.name }}</small>
+                </div>
+                <div class="sale-amount">
+                    <h2>{{ "{:,.2f}".format(sale.total_amount) }} ETB</h2>
+                    <span class="badge">{{ sale.payment_type }}</span>
+                </div>
+            </div>
+            <div class="sale-items-list">
+                <strong>Items:</strong>
+                {% for item in sale.items %}
+                    <div class="sale-item-row">
+                        {{ item.product.name }} × {{ item.quantity }} = {{ "{:,.2f}".format(item.price) }} ETB
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <p class="empty-state">No sales recorded yet</p>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleForm() {
+    var form = document.getElementById('sale-form');
+    form.style.display = form.style.display === 'none' ? 'block' : 'none';
+}
+
+function addItem() {
+    var container = document.getElementById('sale-items');
+    var newItem = container.children[0].cloneNode(true);
+    newItem.querySelector('.product-select').value = '';
+    newItem.querySelector('.quantity-input').value = '';
+    newItem.querySelector('.item-total').textContent = '0.00 ETB';
+    container.appendChild(newItem);
+}
+
+function removeItem(btn) {
+    if (document.getElementById('sale-items').children.length > 1) {
+        btn.parentElement.remove();
+        updateTotal();
+    }
+}
+
+function updateTotal() {
+    var total = 0;
+    var items = document.querySelectorAll('.sale-item');
+    items.forEach(function(item) {
+        var select = item.querySelector('.product-select');
+        var quantity = item.querySelector('.quantity-input').value;
+        if (select.value && quantity) {
+            var price = parseFloat(select.options[select.selectedIndex].dataset.price);
+            var itemTotal = price * parseInt(quantity);
+            item.querySelector('.item-total').textContent = itemTotal.toFixed(2) + ' ETB';
+            total += itemTotal;
+        }
+    });
+    document.getElementById('total-amount').textContent = total.toFixed(2);
+}
+
+function submitSale() {
+    var items = [];
+    var saleItems = document.querySelectorAll('.sale-item');
+    
+    saleItems.forEach(function(item) {
+        var productId = item.querySelector('.product-select').value;
+        var quantity = item.querySelector('.quantity-input').value;
+        if (productId && quantity) {
+            items.push({
+                product_id: parseInt(productId),
+                quantity: parseInt(quantity)
+            });
+        }
+    });
+    
+    if (items.length === 0) {
+        alert('Please add at least one item');
+        return;
+    }
+    
+    var paymentType = document.querySelector('input[name="payment"]:checked').value;
+    
+    fetch('{{ url_for("sales") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            items: items,
+            payment_type: paymentType
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Sale completed successfully!');
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('Error: ' + error);
+    });
+}
+</script>
+{% endblock %}
