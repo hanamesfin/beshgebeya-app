@@ -1,3 +1,5 @@
+# BeshGebeya Tracker Application
+# Latest Sync: 2026-02-18 12:20 PM - Safe Import Implementation
 import os
 import csv
 import re
