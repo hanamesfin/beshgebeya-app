@@ -113,9 +113,6 @@ class Inventory(db.Model):
     pack_unit = db.Column(db.String(20), default='Pcs')
     extra_info = db.Column(db.String(255))
     
-    cost_price = db.Column(db.Float, default=0.0)
-    selling_price = db.Column(db.Float, default=0.0)
-    
     expiry_date = db.Column(db.DateTime)
     entry_date = db.Column(db.DateTime, default=datetime.utcnow)
     batch_number = db.Column(db.String(50))
@@ -786,17 +783,10 @@ def import_products():
 
                 parsed = parse_product_details(name_val)
                 
-                stock_qty = 0
                 try:
                     sq = row.get(column_mapping.get("quantity")) or row.get(column_mapping.get("stock"))
                     stock_qty = float(sq) if sq else 0.0
                 except: stock_qty = 0.0
-
-                price_val = 0
-                try:
-                    pv = row.get(column_mapping.get("price"))
-                    price_val = float(pv) if pv else 0.0
-                except: price_val = 0.0
 
                 category = row.get(column_mapping.get("category"))
                 brand = row.get(column_mapping.get("brand"))
@@ -839,8 +829,6 @@ def import_products():
                     inv.pack_qty = parsed["pack_qty"] or inv.pack_qty
                     inv.pack_unit = parsed["pack_unit"] or inv.pack_unit
                     inv.extra_info = parsed["extra_info"] or inv.extra_info
-                    if price_val > 0:
-                        inv.selling_price = price_val
                 else:
                     inv = Inventory(
                         product_id=product.id,
@@ -851,7 +839,6 @@ def import_products():
                         pack_qty=parsed["pack_qty"],
                         pack_unit=parsed["pack_unit"],
                         extra_info=parsed["extra_info"],
-                        selling_price=price_val,
                         status='AVAILABLE'
                     )
                     db.session.add(inv)
@@ -909,8 +896,6 @@ def get_inventory(inventory_id):
             'pack_qty': inv.pack_qty,
             'pack_unit': inv.pack_unit,
             'extra_info': inv.extra_info,
-            'cost_price': inv.cost_price,
-            'selling_price': inv.selling_price,
             'expiry_date': inv.expiry_date.strftime('%Y-%m-%d') if inv.expiry_date else None,
             'batch_number': inv.batch_number,
             'status': inv.status,
