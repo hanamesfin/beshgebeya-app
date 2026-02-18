@@ -68,7 +68,7 @@ class User(db.Model):
 
 class Product(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(255), nullable=False)
+    name = db.Column(db.String(255), nullable=True)
     local_name = db.Column(db.String(255))
     description = db.Column(db.Text)
     
@@ -98,10 +98,10 @@ class Product(db.Model):
 
 class Inventory(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
-    branch_id = db.Column(db.Integer, db.ForeignKey('branch.id'), nullable=False)
+    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=True)
+    branch_id = db.Column(db.Integer, db.ForeignKey('branch.id'), nullable=True)
     
-    quantity_on_hand = db.Column(db.Float, nullable=False, default=0.0)
+    quantity_on_hand = db.Column(db.Float, nullable=True, default=0.0)
     unit_of_measure = db.Column(db.String(20)) # Pcs, Box, Carton
     
     threshold_min = db.Column(db.Integer, default=10)
@@ -718,14 +718,19 @@ def import_products():
                 
                 stock_qty = row.get('Stock') or row.get('quantity') or row.get('Quantity') or 0
                 
-                if not description_full:
-                    failed_rows.append({"row": i, "reason": "Missing Name/Description"})
-                    continue
-                if not sku_code:
-                    failed_rows.append({"row": i, "reason": "Missing SKU/Code"})
-                    continue
+                # TAKE NAME AND SKU AS IS, with fallbacks to avoid failures
+                description_full = description_full or f"Unnamed Product (Row {i})"
                 
-                # Parse description for structured info (but don't change the name)
+                # Sanitize unique fields to avoid constraint failures with empty strings
+                sku_code = sanitize_unique_field(sku_code)
+                barcode = sanitize_unique_field(barcode)
+                local_code = sanitize_unique_field(local_code)
+
+                # If SKU is STILL missing after sanitization, generate a temp one to satisfy uniqueness if needed,
+                # or just let it be NULL (SQLite allows multiple NULLs in unique cols).
+                # User said "SKU AS IS", so we'll let it be NULL if empty.
+
+                # Parse description for structured info
                 parsed = parse_product_details(description_full)
                 
                 try:
@@ -734,64 +739,65 @@ def import_products():
                 except:
                     stock_qty = 0
 
-                def to_float(val):
-                    if val is None: return None
-                    try: return float(str(val).replace(',', ''))
-                    except: return None
-
-                # Identity: SKU is the primary key
-                product = Product.query.filter_by(sku=sku_code).first()
-
-                if product:
-                    # Merge Logic: Preserve name/description but fill in missing bits
-                    if not product.barcode: product.barcode = barcode
-                    if not product.local_code: product.local_code = local_code or sku_code
-                    if not product.description: product.description = description_full
-                    merged_count += 1
-                else:
-                    product = Product(
-                        name=description_full,
-                        sku=sku_code,
-                        barcode=barcode,
-                        local_code=local_code or sku_code,
-                        description=description_full,
-                        category=None
-                    )
-                    db.session.add(product)
-                    db.session.flush() # Get ID
-                    added_count += 1
-                
-                # Inventory Handling
-                inv = Inventory.query.filter_by(product_id=product.id, branch_id=1).first()
-                if inv:
-                    inv.quantity_on_hand += stock_qty
-                    # Update structured info
-                    inv.unit_size = parsed["unit_size"]
-                    inv.unit_measure = parsed["unit_measure"]
-                    inv.pack_qty = parsed["pack_qty"]
-                    inv.pack_unit = parsed["pack_unit"]
-                    inv.extra_info = parsed["extra_info"]
-                else:
-                    inv = Inventory(
-                        product_id=product.id, 
-                        branch_id=1, 
-                        quantity_on_hand=stock_qty,
-                        unit_size=parsed["unit_size"],
-                        unit_measure=parsed["unit_measure"],
-                        pack_qty=parsed["pack_qty"],
-                        pack_unit=parsed["pack_unit"],
-                        extra_info=parsed["extra_info"],
-                        status='AVAILABLE'
-                    )
-                    db.session.add(inv)
+                # Per-row transaction using savepoints for maximum resilience
+                try:
+                    with db.session.begin_nested():
+                        # Identity: Try SKU first, then Barcode, then Name if both missing (very loose)
+                        product = None
+                        if sku_code:
+                            product = Product.query.filter_by(sku=sku_code).first()
+                        elif barcode:
+                            product = Product.query.filter_by(barcode=barcode).first()
+                        
+                        if product:
+                            # Merge Logic: Preserve name/description but fill in missing bits
+                            if not product.barcode: product.barcode = barcode
+                            if not product.local_code: product.local_code = local_code or sku_code
+                            if not product.description: product.description = description_full
+                            merged_count += 1
+                        else:
+                            product = Product(
+                                name=description_full,
+                                sku=sku_code,
+                                barcode=barcode,
+                                local_code=local_code or sku_code,
+                                description=description_full,
+                                category=None
+                            )
+                            db.session.add(product)
+                            db.session.flush() # Get ID
+                            added_count += 1
+                        
+                        # Inventory Handling
+                        inv = Inventory.query.filter_by(product_id=product.id, branch_id=1).first()
+                        if inv:
+                            inv.quantity_on_hand += stock_qty
+                            # Update structured info
+                            inv.unit_size = parsed["unit_size"]
+                            inv.unit_measure = parsed["unit_measure"]
+                            inv.pack_qty = parsed["pack_qty"]
+                            inv.pack_unit = parsed["pack_unit"]
+                            inv.extra_info = parsed["extra_info"]
+                        else:
+                            inv = Inventory(
+                                product_id=product.id, 
+                                branch_id=1, 
+                                quantity_on_hand=stock_qty,
+                                unit_size=parsed["unit_size"],
+                                unit_measure=parsed["unit_measure"],
+                                pack_qty=parsed["pack_qty"],
+                                pack_unit=parsed["pack_unit"],
+                                extra_info=parsed["extra_info"],
+                                status='AVAILABLE'
+                            )
+                            db.session.add(inv)
+                except Exception as row_error:
+                    db.session.rollback() # Rollback to savepoint
+                    failed_rows.append({"row": i, "reason": str(row_error)})
+                    continue
                 
             except Exception as e:
-                # Do NOT rollback the entire session here because we want to save successful rows.
-                # Instead, we just don't commit this specific row's changes if they were flushed.
-                # In Flask-SQLAlchemy, a flush can be undone by a rollback, but we want a per-row retry.
-                # For simplicity, we'll just log and continue. 
-                # To be truly safe with flushes, we should use nested transactions (savepoints).
-                failed_rows.append({"row": i, "reason": str(e)})
+                failed_rows.append({"row": i, "reason": f"System error on row {i}: {str(e)}"})
                 continue
         
         db.session.commit()
