@@ -57,8 +57,7 @@
                     <input type="file" id="fileElem" name="file" accept=".xlsx,.xls,.csv" hidden
                         onchange="handleFiles(this.files)">
                     <label for="fileElem" class="upload-box" id="drop-area">
-                        <div class="upload-icon">📄</div>
-                        <p>Drag & Drop Excel/CSV Here or Click to Upload</p>
+                        Drag & Drop Excel/XML Here or Click to Upload
                         <div id="file-name-display" class="small"
                             style="margin-top: 10px; color: var(--blue-600); font-weight: 600;"></div>
                     </label>
@@ -111,20 +110,18 @@
 
 <style>
     .upload-box {
-        border: 2px dashed var(--blue-600);
-        padding: 60px 40px;
+        border: 2px dashed #4CAF50;
+        padding: 40px;
         text-align: center;
-        border-radius: var(--radius-lg);
-        background-color: var(--blue-50);
-        transition: all var(--transition-base);
+        border-radius: 12px;
+        background: #f9f9f9;
+        transition: 0.3s;
         display: block;
         cursor: pointer;
     }
 
     .upload-box:hover {
-        background-color: var(--blue-100);
-        border-color: var(--blue-800);
-        transform: translateY(-2px);
+        background: #e8f5e9;
     }
 
     .upload-box.dragover {

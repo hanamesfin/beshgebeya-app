@@ -110,6 +110,10 @@ class Inventory(db.Model):
     pack_qty = db.Column(db.Integer, default=1)
     pack_unit = db.Column(db.String(20), default='Pcs')
     extra_info = db.Column(db.String(255))
+    
+    cost_price = db.Column(db.Float, default=0.0)
+    selling_price = db.Column(db.Float, default=0.0)
+    
     expiry_date = db.Column(db.DateTime)
     entry_date = db.Column(db.DateTime, default=datetime.utcnow)
     batch_number = db.Column(db.String(50))
@@ -601,6 +605,54 @@ def sanitize_unique_field(value):
     return s if s else None
 
 
+def detect_column(column_name):
+    """
+    Smart detection of column mapping based on common keywords.
+    Priority is important to avoid overlaps (e.g., 'Bar Code' catching 'code' for SKU).
+    """
+    col = str(column_name).lower().strip()
+    
+    # 1. Barcode (Specific)
+    if any(x in col for x in ["barcode", "bar code", "ean", "upc"]):
+        return "barcode"
+    
+    # 2. SKU (Specific)
+    if any(x in col for x in ["sku", "product code", "item code"]):
+        return "sku"
+    
+    # 3. Local Code (Specific)
+    if any(x in col for x in ["local code", "internal code", "local_code", "ref"]):
+        return "local_code"
+    
+    # 4. Quantity (Specific)
+    if any(x in col for x in ["qty", "quantity", "stock", "inventory", "count"]):
+        return "quantity"
+    
+    # 5. Price (Specific)
+    if any(x in col for x in ["price", "cost", "amount", "rate"]):
+        return "price"
+    
+    # 6. Category (Specific)
+    if any(x in col for x in ["category", "dept", "department", "group"]):
+        return "category"
+    
+    # 7. Brand/Supplier
+    if any(x in col for x in ["brand", "make", "manufacturer"]):
+        return "brand"
+    if any(x in col for x in ["supplier", "vendor", "distributor"]):
+        return "supplier"
+    
+    # 8. Name (Catch-all for description)
+    if any(x in col for x in ["name", "title", "product name", "item description", "description"]):
+        return "name"
+    
+    # 9. Loose SKU match
+    if "code" in col:
+        return "sku"
+    
+    return None
+
+
 def parse_product_details(text):
     """
     Production-ready safe parsing that never modifies the original name.
@@ -645,21 +697,18 @@ def import_products():
         file = request.files.get('file')
         sheet_url = request.form.get('sheet_url')
         
-        # Processing import request
-
-        
         imported_data = []
+        headers = []
         
         if file and file.filename:
             filename = file.filename.lower()
-            pass
             file.seek(0)
             if filename.endswith('.csv'):
                 try:
                     content = file.read().decode("UTF8")
                     stream = StringIO(content, newline=None)
                     reader = csv.DictReader(stream)
-                    reader.fieldnames = [f.strip() for f in reader.fieldnames] if reader.fieldnames else None
+                    headers = [f.strip() for f in reader.fieldnames] if reader.fieldnames else []
                     imported_data = list(reader)
                 except Exception as e:
                     flash(f"Error reading CSV: {str(e)}", "error")
@@ -695,6 +744,7 @@ def import_products():
                     response.raise_for_status()
                     stream = StringIO(response.text)
                     reader = csv.DictReader(stream)
+                    headers = [f.strip() for f in reader.fieldnames] if reader.fieldnames else []
                     imported_data = list(reader)
                 except Exception as e:
                     flash(f"Error fetching Google Sheet: {str(e)}", "error")
@@ -704,100 +754,109 @@ def import_products():
             flash("No data found to import", "error")
             return redirect(url_for('import_products'))
         
+        # --- SMART COLUMN MAPPING ---
+        column_mapping = {}
+        for h in headers:
+            field = detect_column(h)
+            if field and field not in column_mapping:
+                column_mapping[field] = h
+        
+        # Validation: check for minimum required fields (name or SKU)
+        if not column_mapping.get("name") and not column_mapping.get("sku"):
+            flash("Could not detect Name or SKU columns. Please ensure your file has identifiable headers.", "error")
+            return redirect(url_for('import_products'))
+            
         added_count = 0
         merged_count = 0
         failed_rows = []
         
         for i, row in enumerate(imported_data, 1):
             try:
-                # Row data handling
-                description_full = str(row.get('Item Description') or row.get('Description') or row.get('name') or row.get('description', '')).strip()
-                sku_code = sanitize_unique_field(row.get('Code') or row.get('sku') or row.get('SKU'))
-                barcode = sanitize_unique_field(row.get('Barcode') or row.get('barcode'))
-                local_code = sanitize_unique_field(row.get('Local Code') or row.get('local_code'))
+                name_val = str(row.get(column_mapping.get("name")) or "").strip()
+                sku = sanitize_unique_field(row.get(column_mapping.get("sku")))
                 
-                stock_qty = row.get('Stock') or row.get('quantity') or row.get('Quantity') or 0
-                
-                # TAKE NAME AND SKU AS IS, with fallbacks to avoid failures
-                description_full = description_full or f"Unnamed Product (Row {i})"
-                
-                # Sanitize unique fields to avoid constraint failures with empty strings
-                sku_code = sanitize_unique_field(sku_code)
-                barcode = sanitize_unique_field(barcode)
-                local_code = sanitize_unique_field(local_code)
-
-                # If SKU is STILL missing after sanitization, generate a temp one to satisfy uniqueness if needed,
-                # or just let it be NULL (SQLite allows multiple NULLs in unique cols).
-                # User said "SKU AS IS", so we'll let it be NULL if empty.
-
-                # Parse description for structured info
-                parsed = parse_product_details(description_full)
-                
-                try:
-                    stock_qty = float(stock_qty)
-                    if stock_qty < 0: stock_qty = 0
-                except:
-                    stock_qty = 0
-
-                # Per-row transaction using savepoints for maximum resilience
-                try:
-                    with db.session.begin_nested():
-                        # Identity: Try SKU first, then Barcode, then Name if both missing (very loose)
-                        product = None
-                        if sku_code:
-                            product = Product.query.filter_by(sku=sku_code).first()
-                        elif barcode:
-                            product = Product.query.filter_by(barcode=barcode).first()
-                        
-                        if product:
-                            # Merge Logic: Preserve name/description but fill in missing bits
-                            if not product.barcode: product.barcode = barcode
-                            if not product.local_code: product.local_code = local_code or sku_code
-                            if not product.description: product.description = description_full
-                            merged_count += 1
-                        else:
-                            product = Product(
-                                name=description_full,
-                                sku=sku_code,
-                                barcode=barcode,
-                                local_code=local_code or sku_code,
-                                description=description_full,
-                                category=None
-                            )
-                            db.session.add(product)
-                            db.session.flush() # Get ID
-                            added_count += 1
-                        
-                        # Inventory Handling
-                        inv = Inventory.query.filter_by(product_id=product.id, branch_id=1).first()
-                        if inv:
-                            inv.quantity_on_hand += stock_qty
-                            # Update structured info
-                            inv.unit_size = parsed["unit_size"]
-                            inv.unit_measure = parsed["unit_measure"]
-                            inv.pack_qty = parsed["pack_qty"]
-                            inv.pack_unit = parsed["pack_unit"]
-                            inv.extra_info = parsed["extra_info"]
-                        else:
-                            inv = Inventory(
-                                product_id=product.id, 
-                                branch_id=1, 
-                                quantity_on_hand=stock_qty,
-                                unit_size=parsed["unit_size"],
-                                unit_measure=parsed["unit_measure"],
-                                pack_qty=parsed["pack_qty"],
-                                pack_unit=parsed["pack_unit"],
-                                extra_info=parsed["extra_info"],
-                                status='AVAILABLE'
-                            )
-                            db.session.add(inv)
-                except Exception as row_error:
-                    db.session.rollback() # Rollback to savepoint
-                    failed_rows.append({"row": i, "reason": str(row_error)})
+                if not name_val:
+                    failed_rows.append({"row": i, "reason": "Missing Name"})
                     continue
+                if not sku:
+                    failed_rows.append({"row": i, "reason": "Missing SKU"})
+                    continue
+
+                parsed = parse_product_details(name_val)
+                
+                stock_qty = 0
+                try:
+                    sq = row.get(column_mapping.get("quantity")) or row.get(column_mapping.get("stock"))
+                    stock_qty = float(sq) if sq else 0.0
+                except: stock_qty = 0.0
+
+                price_val = 0
+                try:
+                    pv = row.get(column_mapping.get("price"))
+                    price_val = float(pv) if pv else 0.0
+                except: price_val = 0.0
+
+                category = row.get(column_mapping.get("category"))
+                brand = row.get(column_mapping.get("brand"))
+                supplier = row.get(column_mapping.get("supplier"))
+                barcode = sanitize_unique_field(row.get(column_mapping.get("barcode")))
+
+                existing = Product.query.filter_by(sku=sku).first()
+
+                if existing:
+                    # Merge logic
+                    existing.name = name_val
+                    existing.description = name_val
+                    if category: existing.category = category
+                    if brand: existing.brand = brand
+                    if supplier: existing.supplier = supplier
+                    if barcode: existing.barcode = barcode
+                    merged_count += 1
+                    product = existing
+                else:
+                    product = Product(
+                        name=name_val,
+                        sku=sku,
+                        local_code=sku,
+                        description=name_val,
+                        barcode=barcode,
+                        category=category,
+                        brand=brand,
+                        supplier=supplier
+                    )
+                    db.session.add(product)
+                    db.session.flush()
+                    added_count += 1
+
+                # Inventory Handling
+                inv = Inventory.query.filter_by(product_id=product.id, branch_id=1).first()
+                if inv:
+                    inv.quantity_on_hand += stock_qty
+                    inv.unit_size = parsed["unit_size"] or inv.unit_size
+                    inv.unit_measure = parsed["unit_measure"] or inv.unit_measure
+                    inv.pack_qty = parsed["pack_qty"] or inv.pack_qty
+                    inv.pack_unit = parsed["pack_unit"] or inv.pack_unit
+                    inv.extra_info = parsed["extra_info"] or inv.extra_info
+                    if price_val > 0:
+                        inv.selling_price = price_val
+                else:
+                    inv = Inventory(
+                        product_id=product.id,
+                        branch_id=1,
+                        quantity_on_hand=stock_qty,
+                        unit_size=parsed["unit_size"],
+                        unit_measure=parsed["unit_measure"],
+                        pack_qty=parsed["pack_qty"],
+                        pack_unit=parsed["pack_unit"],
+                        extra_info=parsed["extra_info"],
+                        selling_price=price_val,
+                        status='AVAILABLE'
+                    )
+                    db.session.add(inv)
                 
             except Exception as e:
-                failed_rows.append({"row": i, "reason": f"System error on row {i}: {str(e)}"})
+                db.session.rollback()
+                failed_rows.append({"row": i, "reason": str(e)})
                 continue
         
         db.session.commit()
