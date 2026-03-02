@@ -5,105 +5,184 @@
 {% block content %}
 <div class="container">
     <div class="page-header">
-        <h1>🚀 Import Products</h1>
+        <h1 data-en="🚀 Import Products" data-am="🚀 ምርቶችን አስገባ">🚀 Import Products</h1>
         <div class="header-actions">
-            <button onclick="toggleView('history')" class="btn-secondary" id="btn-history">📜 Import History</button>
-            <button onclick="toggleView('form')" class="btn-primary" id="btn-new-import" style="display:none;">📤 New
-                Import</button>
+            <button onclick="toggleView('history')" class="glass-btn-blue" id="btn-history">
+                <span class="blue-emoji">📜</span> <span data-en="Import History" data-am="የማስገባት ታሪክ">Import
+                    History</span>
+            </button>
+            <button onclick="toggleView('form')" class="glass-btn-blue" id="btn-new-import" style="display:none;">
+                <span class="blue-emoji">📤</span> <span data-en="New Import" data-am="አዲስ አስገባ">New Import</span>
+            </button>
         </div>
     </div>
 
     {% if added is defined %}
-    <div class="section" id="import-results">
-        <h2 style="color: var(--blue-900); margin-bottom: 20px;">📊 Import Results</h2>
-        <div class="metrics-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;">
-            <div class="metric-card"
-                style="background: var(--blue-50); padding: 25px; border-radius: var(--radius-lg); text-align: center; border: 1px solid var(--blue-100);">
-                <div style="font-size: 2.5rem; font-weight: 800; color: var(--blue-600); line-height: 1;">{{ added }}
-                </div>
-                <div style="margin-top: 10px; font-weight: 600; color: var(--gray-700);">New Products</div>
+    <div class="crystal-card" id="import-results" style="margin-bottom: 30px;">
+        <div class="card-title">
+            <span class="icon-circle blue-emoji">📊</span>
+            <div class="title-text">
+                <h3>Import Results</h3>
+                <p class="subtitle">Latest Session Summary</p>
             </div>
-            <div class="metric-card"
-                style="background: var(--green-light); padding: 25px; border-radius: var(--radius-lg); text-align: center; border: 1px solid rgba(22, 163, 74, 0.1);">
-                <div style="font-size: 2.5rem; font-weight: 800; color: var(--green); line-height: 1;">{{ merged }}
-                </div>
-                <div style="margin-top: 10px; font-weight: 600; color: var(--gray-700);">Merged / Updated</div>
-            </div>
-            <div class="metric-card"
-                style="background: var(--gray-100); padding: 25px; border-radius: var(--radius-lg); text-align: center; border: 1px solid var(--gray-200);">
-                <div style="font-size: 2.5rem; font-weight: 800; color: var(--gray-600); line-height: 1;">{{ failed }}
-                </div>
-                <div style="margin-top: 10px; font-weight: 600; color: var(--gray-700);">Failures</div>
-            </div>
+            <span class="glass-pill">Processed</span>
         </div>
 
-        {% if log_file %}
-        <div class="alert alert-warning"
-            style="margin-top: 25px; display: flex; align-items: center; justify-content: space-between; padding: 20px; border-radius: var(--radius-md);">
-            <span>⚠️ Issues found in {{ failed }} rows. Check the log for details.</span>
-            <a href="{{ url_for('download_import_log', filename=log_file) }}" class="btn-secondary"
-                style="white-space: nowrap;">📥 Download Log</a>
+        <div class="card-content">
+            <div class="metrics-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;">
+                <div class="metric-card"
+                    style="background: rgba(30, 144, 255, 0.05); padding: 25px; border-radius: var(--radius-lg); text-align: center; border: 1px solid rgba(0, 123, 255, 0.1);">
+                    <div style="font-size: 2.5rem; font-weight: 800; color: #2563EB; line-height: 1;">{{ added }}</div>
+                    <div style="margin-top: 10px; font-weight: 600; color: var(--gray-700);">New Products</div>
+                </div>
+                <div class="metric-card"
+                    style="background: rgba(34, 197, 94, 0.05); padding: 25px; border-radius: var(--radius-lg); text-align: center; border: 1px solid rgba(34, 197, 94, 0.1);">
+                    <div style="font-size: 2.5rem; font-weight: 800; color: #16a34a; line-height: 1;">{{ merged }}</div>
+                    <div style="margin-top: 10px; font-weight: 600; color: var(--gray-700);">Merged / Updated</div>
+                </div>
+                <div class="metric-card"
+                    style="background: rgba(220, 38, 38, 0.05); padding: 25px; border-radius: var(--radius-lg); text-align: center; border: 1px solid rgba(220, 38, 38, 0.1);">
+                    <div style="font-size: 2.5rem; font-weight: 800; color: #dc2626; line-height: 1;">{{ failed }}</div>
+                    <div style="margin-top: 10px; font-weight: 600; color: var(--gray-700);">Failures</div>
+                </div>
+            </div>
+
+            {% if log_file %}
+            <div class="alert alert-warning"
+                style="margin-top: 25px; display: flex; align-items: center; justify-content: space-between; padding: 20px; border-radius: var(--radius-md); background: rgba(245, 158, 11, 0.08);">
+                <span>⚠️ Issues found in {{ failed }} rows. Check the log for details.</span>
+                <a href="{{ url_for('download_import_log', filename=log_file) }}" class="btn-secondary"
+                    style="white-space: nowrap;">📥 Download Log</a>
+            </div>
+            {% endif %}
         </div>
-        {% endif %}
     </div>
     {% endif %}
 
     <div id="import-form-view">
-        <div class="section">
-            <h2>Upload File</h2>
-            <form action="{{ url_for('import_products') }}" method="POST" enctype="multipart/form-data"
-                id="main-upload-form">
-                <div class="upload-area">
-                    <input type="file" id="fileElem" name="file" accept=".xlsx,.xls,.csv" hidden
-                        onchange="handleFiles(this.files)">
-                    <label for="fileElem" class="upload-box" id="drop-area">
-                        Drag & Drop Excel/XML Here or Click to Upload
-                        <div id="file-name-display" class="small"
-                            style="margin-top: 10px; color: var(--blue-600); font-weight: 600;"></div>
-                    </label>
+        <div class="crystal-card" style="margin-bottom: 30px;">
+            <div class="card-title">
+                <span class="icon-circle blue-emoji">📤</span>
+                <div class="title-text">
+                    <h3>Upload File</h3>
+                    <p class="subtitle">Excel, CSV, or XML</p>
                 </div>
-                <div class="form-actions" style="margin-top: 20px;">
-                    <button type="submit" class="btn-primary" id="import-submit-btn"
-                        style="width: 100%; padding: 15px; font-size: 1.1rem;">🚀 Start Import</button>
-                </div>
-            </form>
+            </div>
+            <div class="card-content">
+                <form action="{{ url_for('import_products') }}" method="POST" enctype="multipart/form-data"
+                    id="main-upload-form">
+                    <div class="upload-area">
+                        <input type="file" id="fileElem" name="file" accept=".xlsx,.xls,.csv" hidden
+                            onchange="handleFiles(this.files)">
+                        <label for="fileElem" class="upload-box" id="drop-area">
+                            Drag & Drop Excel/CSV Here or Click to Upload
+                            <div id="file-name-display" class="small"
+                                style="margin-top: 10px; color: var(--blue-600); font-weight: 600;"></div>
+                        </label>
+                    </div>
+                    <div class="form-actions" style="margin-top: 20px;">
+                        <button type="submit" class="btn-primary" id="import-submit-btn"
+                            style="width: 100%; padding: 15px; font-size: 1.1rem;">🚀 Start Import</button>
+                    </div>
+                </form>
+            </div>
         </div>
 
-        <div class="section">
-            <h2>Google Spreadsheet Import</h2>
-            <form action="{{ url_for('import_products') }}" method="POST">
-                <div class="form-group">
-                    <label for="sheet_url">Google Sheet Public Link</label>
-                    <input type="url" name="sheet_url" id="sheet_url"
-                        placeholder="https://docs.google.com/spreadsheets/d/..." required>
-                    <small>Make sure the sheet is shared as "Anyone with the link can view"</small>
+        <div class="crystal-card" style="margin-bottom: 30px;">
+            <div class="card-title">
+                <span class="icon-circle blue-emoji">🌐</span>
+                <div class="title-text">
+                    <h3>Google Spreadsheet</h3>
+                    <p class="subtitle">Import from Cloud</p>
                 </div>
-                <button type="submit" class="btn-primary">Import from Google Sheets</button>
-            </form>
-        </div>
-
-        <div class="section">
-            <h2>Expected Format</h2>
-            <div class="form-grid">
-                <div>
-                    <h3>Excel (.xlsx / .xls)</h3>
-                    <p>The first row must contain headers. Columns can be in any order:</p>
-                    <code>Item Description, Barcode, Code, Stock, Category</code>
-                    <p style="margin-top: 10px;"><small>Note: <b>Item Description</b> is mandatory.</small></p>
-                </div>
-                <div>
-                    <h3>CSV Columns</h3>
-                    <p>Comma-separated values with headers in the first row:</p>
-                    <code>Item Description, Barcode, Code, Stock, Category</code>
-                </div>
+            </div>
+            <div class="card-content">
+                <form action="{{ url_for('import_products') }}" method="POST">
+                    <div class="form-group">
+                        <label for="sheet_url">Google Sheet Public Link</label>
+                        <input type="url" name="sheet_url" id="sheet_url"
+                            placeholder="https://docs.google.com/spreadsheets/d/..." required>
+                        <small>Make sure the sheet is shared as "Anyone with the link can view"</small>
+                    </div>
+                    <button type="submit" class="btn-primary">Import Cloud Data</button>
+                </form>
             </div>
         </div>
     </div>
 
     <div id="import-history-view" style="display:none;">
-        <div class="section">
-            <h2>Recent Import Activity</h2>
-            <p class="empty-state">Import history log feature coming soon. Recent snapshots will appear here.</p>
+        <div class="crystal-card">
+            <div class="card-title">
+                <span class="icon-circle blue-emoji">📜</span>
+                <div class="title-text">
+                    <h3>Import history</h3>
+                    <p class="subtitle">Management Log</p>
+                </div>
+            </div>
+            <div class="card-content">
+                {% if history %}
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Date & Time</th>
+                                <th>Source</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in history %}
+                            <tr>
+                                <td>
+                                    <div style="font-weight: 600; color: #1e3a8a;">{{ log.created_at.strftime('%b %d,
+                                        %Y') }}</div>
+                                    <small style="color: var(--gray-500);">{{ log.created_at.strftime('%H:%M %p')
+                                        }}</small>
+                                </td>
+                                <td>
+                                    <div class="small"
+                                        style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                        {{ log.filename }}
+                                    </div>
+                                    <span class="glass-pill" style="font-size: 0.75rem; padding: 2px 8px;">{{
+                                        log.import_type }}</span>
+                                </td>
+                                <td>
+                                    <div style="display: flex; gap: 8px;">
+                                        <span class="glass-pill pill-info"
+                                            style="font-size: 0.7rem; background: rgba(30,144,255,0.05);">U: {{
+                                            log.merged_count }}</span>
+                                        <span class="glass-pill pill-critical" style="font-size: 0.7rem;">F: {{
+                                            log.failed_count }}</span>
+                                        <span class="glass-pill pill-success"
+                                            style="font-size: 0.7rem; background: rgba(34,197,94,0.05); color: #16a34a; border-color: rgba(34,197,94,0.15);">M:
+                                            {{ log.added_count }}</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    {% if log.log_filename %}
+                                    <a href="{{ url_for('download_import_log', filename=log.log_filename) }}"
+                                        class="btn-icon" title="Download Log">📥</a>
+                                    {% else %}
+                                    <span style="color: var(--gray-400);">No Log</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="card-empty-state">
+                    <div class="empty-icon-wrapper">
+                        <span class="empty-emoji blue-emoji">📜</span>
+                    </div>
+                    <p class="empty-headline">No history yet</p>
+                    <p class="empty-subtext">Start your first import to see activity here.</p>
+                </div>
+                {% endif %}
+            </div>
         </div>
     </div>
 </div>
@@ -209,5 +288,17 @@
             }
         });
     }
+
+    // Trigger Success Animation if results are present
+    {% if added is defined and(added > 0 or merged > 0) %}
+    document.addEventListener('DOMContentLoaded', function () {
+        // Delay slightly to ensure main.js (deferred) and overlay are ready
+        setTimeout(function () {
+            if (typeof showImportAnimation === 'function') {
+                showImportAnimation();
+            }
+        }, 500);
+    });
+    {% endif %}
 </script>
 {% endblock %}

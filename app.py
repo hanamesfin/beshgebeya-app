@@ -1,6 +1,11 @@
 # BeshGebeya Tracker Application
 # Latest Sync: 2026-02-18 12:20 PM - Safe Import Implementation
 import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env
+load_dotenv()
+
 import csv
 import re
 import requests
@@ -14,6 +19,8 @@ from flask import Flask, render_template, request, redirect, url_for, flash, jso
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.routing import BuildError
+from authlib.integrations.flask_client import OAuth
 import click
 # =====================
 # CREATE APP
@@ -32,7 +39,8 @@ if database_url:
         database_url = database_url.replace("postgres://", "postgresql://", 1)
 else:
     # Local fallback (SQLite)
-    database_url = "sqlite:///local.db"
+    basedir = os.path.abspath(os.path.dirname(__file__))
+    database_url = "sqlite:///" + os.path.join(basedir, 'instance', 'local.db')
 
 app.config["SQLALCHEMY_DATABASE_URI"] = database_url
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
@@ -42,6 +50,25 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 # =====================
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
+oauth = OAuth(app)
+
+# --- GOOGLE OAUTH CONFIG ---
+google = oauth.register(
+    name='google',
+    client_id=os.environ.get('GOOGLE_CLIENT_ID'),
+    client_secret=os.environ.get('GOOGLE_CLIENT_SECRET'),
+    server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
+    client_kwargs={'scope': 'openid email profile'}
+)
+
+# --- APPLE OAUTH CONFIG ---
+apple = oauth.register(
+    name='apple',
+    client_id=os.environ.get('APPLE_CLIENT_ID'),
+    client_secret=os.environ.get('APPLE_CLIENT_SECRET'),
+    server_metadata_url='https://appleid.apple.com/.well-known/openid-configuration',
+    client_kwargs={'scope': 'name email'}
+)
 
 # =====================
 # MODELS
@@ -60,10 +87,27 @@ class Branch(db.Model):
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
-    email = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash = db.Column(db.String(200), nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=True)
+    phone_number = db.Column(db.String(20), unique=True, nullable=True)
+    password_hash = db.Column(db.String(200), nullable=True) # Nullable for social users
     name = db.Column(db.String(100))
+    
+    # User Preferences
+    chart_style = db.Column(db.String(20), default='glass')
+    landing_page = db.Column(db.String(20), default='dashboard')
+    
+    # Social Login IDs
+    google_id = db.Column(db.String(100), unique=True, nullable=True)
+    apple_id = db.Column(db.String(100), unique=True, nullable=True)
+    
     is_admin = db.Column(db.Boolean, default=False)
+    is_approved = db.Column(db.Boolean, default=False)
+    is_denied = db.Column(db.Boolean, default=False)
+    
+    # Password Reset
+    reset_token = db.Column(db.String(100), unique=True, nullable=True)
+    reset_token_expiry = db.Column(db.DateTime, nullable=True)
+    
     branch_id = db.Column(db.Integer, db.ForeignKey('branch.id'))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -121,11 +165,26 @@ class Inventory(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 
+class Sale(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    branch_id = db.Column(db.Integer, db.ForeignKey('branch.id'), nullable=True)
+    total_amount = db.Column(db.Float, nullable=False)
+    payment_type = db.Column(db.String(20), default='CASH') # CASH, CARD, MOBILE
+    sale_date = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    items = db.relationship('SaleItem', backref='sale', lazy=True)
+    user = db.relationship('User', backref='sales', lazy=True)
+    branch = db.relationship('Branch', backref='sales', lazy=True)
+
+
 class SaleItem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    sale_id = db.Column(db.Integer, db.ForeignKey('sale.id'), nullable=True)
     product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
     price = db.Column(db.Float, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 
 class Alert(db.Model):
@@ -138,6 +197,15 @@ class Alert(db.Model):
     days_until_expiry = db.Column(db.Integer)
     is_read = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+class ImportLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    filename = db.Column(db.String(255))
+    import_type = db.Column(db.String(50)) # 'FILE' or 'GOOGLE_SHEET'
+    added_count = db.Column(db.Integer, default=0)
+    merged_count = db.Column(db.Integer, default=0)
+    failed_count = db.Column(db.Integer, default=0)
+    log_filename = db.Column(db.String(255))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 # =====================
 # DATABASE INITIALIZATION
@@ -145,6 +213,7 @@ class Alert(db.Model):
 def initialize_database(app: Flask):
     """Insert default branch and admin user safely."""
     with app.app_context():
+        db.create_all()
         # Ensure at least one branch exists
         if Branch.query.count() == 0:
             default_branch = Branch(
@@ -164,12 +233,21 @@ def initialize_database(app: Flask):
                 email="admin@example.com",
                 name="Administrator",
                 is_admin=True,
+                is_approved=True,
                 branch_id=branch.id,
                 password_hash=generate_password_hash("admin123")
             )
             db.session.add(default_admin)
             db.session.commit()
             print("[DB INIT] Default admin user created")
+            
+        # Ensure all existing users are approved during this transition (optional but helpful)
+        unapproved_users = User.query.filter_by(is_approved=None).all()
+        if unapproved_users:
+            for u in unapproved_users:
+                u.is_approved = True
+            db.session.commit()
+            print(f"[DB INIT] {len(unapproved_users)} legacy users auto-approved")
 
 # =====================
 # CALL DATABASE INITIALIZATION
@@ -205,6 +283,17 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+@app.after_request
+def add_header(response):
+    """Add headers to prevent caching of sensitive pages"""
+    if 'user_id' in session:
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, post-check=0, pre-check=0, max-age=0'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '-1'
+    return response
+
+# =====================
+
 # =====================
 # ROUTES (unchanged)
 # =====================
@@ -214,12 +303,32 @@ def admin_required(f):
 def signup():
     if request.method == 'POST':
         username = request.form['username']
-        email = request.form['email']
+        email_or_phone = request.form['email']
         password = request.form['password']
 
         # Check existing username
         if User.query.filter_by(username=username).first():
             flash('Username already exists', 'error')
+            return redirect(url_for('signup'))
+
+        # Validate Email or Phone
+        email = None
+        phone = None
+        
+        if validate_email(email_or_phone):
+            email = email_or_phone
+        elif validate_phone(email_or_phone):
+            phone = email_or_phone
+        else:
+            flash('Please enter a valid Email or Phone Number', 'error')
+            return redirect(url_for('signup'))
+
+        # Check existing email/phone
+        if email and User.query.filter_by(email=email).first():
+            flash('Email already registered', 'error')
+            return redirect(url_for('signup'))
+        if phone and User.query.filter_by(phone_number=phone).first():
+            flash('Phone number already registered', 'error')
             return redirect(url_for('signup'))
 
         # Ensure at least one branch exists
@@ -238,9 +347,11 @@ def signup():
         user = User(
             username=username,
             email=email,
+            phone_number=phone,
             password_hash=generate_password_hash(password),
             name=username,
             is_admin=is_first_user,
+            is_approved=is_first_user, # First user is auto-approved admin
             branch_id=branch.id
         )
 
@@ -257,19 +368,38 @@ def signup():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        username = request.form['username']
+        username_field = request.form['username'] # Can be username, email, or phone
         password = request.form['password']
         
-        user = User.query.filter_by(username=username).first()
+        # Try to find user by username, email, or phone
+        user = User.query.filter(
+            (User.username == username_field) | 
+            (User.email == username_field) | 
+            (User.phone_number == username_field)
+        ).first()
         
-        if user and check_password_hash(user.password_hash, password):
+        if user and user.password_hash and check_password_hash(user.password_hash, password):
+            if user.is_denied:
+                flash('Your account has been denied access by an administrator.', 'error')
+                return redirect(url_for('login'))
+            if not user.is_approved:
+                flash('Your account is awaiting admin approval.', 'warning')
+                return redirect(url_for('login'))
+                
             session['user_id'] = user.id
             session['username'] = user.username
             session['is_admin'] = user.is_admin
             flash('Login successful!', 'success')
-            return redirect(url_for('dashboard'))
+            
+            # Redirect to user's preferred landing page
+            landing_page = getattr(user, 'landing_page', None) or 'dashboard'
+            # Fallback to dashboard if the page doesn't exist or is invalid
+            try:
+                return redirect(url_for(landing_page))
+            except BuildError:
+                return redirect(url_for('dashboard'))
         else:
-            flash('Invalid credentials', 'error')
+            flash('Invalid credentials or password not set', 'error')
     
     return render_template('login.html')
 
@@ -277,13 +407,308 @@ def login():
 def logout():
     session.clear()
     flash('Logged out', 'success')
-    return redirect(url_for('login'))
+    response = redirect(url_for('login'))
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    return response
+
+@app.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    if request.method == 'POST':
+        email = request.form.get('email')
+        user = User.query.filter_by(email=email).first()
+        if user:
+            import secrets
+            token = secrets.token_urlsafe(32)
+            user.reset_token = token
+            user.reset_token_expiry = datetime.utcnow() + timedelta(hours=1)
+            db.session.commit()
+            
+            # In a real app, send email here. For now, we'll flash the link for demo purposes.
+            reset_url = url_for('reset_password', token=token, _external=True)
+            flash(f'Password reset link generated: {reset_url}', 'info')
+        else:
+            flash('If that email exists in our system, a reset link has been sent.', 'info')
+        return redirect(url_for('login'))
+    return render_template('forgot_password.html')
+
+@app.route('/reset-password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    user = User.query.filter_by(reset_token=token).first()
+    if not user or user.reset_token_expiry < datetime.utcnow():
+        flash('Invalid or expired reset token', 'error')
+        return redirect(url_for('login'))
+        
+    if request.method == 'POST':
+        password = request.form.get('password')
+        user.password_hash = generate_password_hash(password)
+        user.reset_token = None
+        user.reset_token_expiry = None
+        db.session.commit()
+        flash('Password updated successfully!', 'success')
+        return redirect(url_for('login'))
+        
+    return render_template('reset_password.html', token=token)
+
+@app.route('/admin/approve-user/<int:user_id>', methods=['POST'])
+@admin_required
+def approve_user(user_id):
+    user = User.query.get_or_404(user_id)
+    user.is_approved = True
+    user.is_denied = False
+    db.session.commit()
+    
+    if request.headers.get('HX-Request'):
+        users = User.query.all()
+        return render_template('partials/user_table_rows.html', users=users)
+        
+    flash(f'User {user.username} approved!', 'success')
+    return redirect(url_for('admin_panel'))
+
+@app.route('/admin/deny-user/<int:user_id>', methods=['POST'])
+@admin_required
+def deny_user(user_id):
+    user = User.query.get_or_404(user_id)
+    username = user.username
+    user.is_approved = False
+    user.is_denied = True
+    db.session.commit()
+    
+    if not request.headers.get('HX-Request'):
+        flash(f'User {username} access denied.', 'warning')
+            
+    if request.headers.get('HX-Request'):
+        users = User.query.all()
+        return render_template('partials/user_table_rows.html', users=users)
+        
+    return redirect(url_for('admin_panel'))
+
+@app.route('/admin/update-role/<int:user_id>', methods=['POST'])
+@admin_required
+def update_role(user_id):
+    user = User.query.get_or_404(user_id)
+    new_role = request.form.get('role')
+    user.is_admin = (new_role == 'admin')
+    db.session.commit()
+    
+    if request.headers.get('HX-Request'):
+        users = User.query.all()
+        return render_template('partials/user_table_rows.html', users=users)
+        
+    flash(f'Role for {user.username} updated to {new_role}!', 'success')
+    return redirect(url_for('admin_panel'))
+
+@app.route('/login/google')
+def login_google():
+    if not os.environ.get('GOOGLE_CLIENT_ID'):
+        flash('Google Client ID not configured. Please add it to your .env file.', 'error')
+        return redirect(url_for('login'))
+    if not os.environ.get('GOOGLE_CLIENT_SECRET'):
+        flash('Google Client Secret not configured. Please add it to your .env file.', 'error')
+        return redirect(url_for('login'))
+    redirect_uri = url_for('auth_callback', provider='google', _external=True)
+    return google.authorize_redirect(redirect_uri)
+
+@app.route('/login/apple')
+def login_apple():
+    if not os.environ.get('APPLE_CLIENT_ID'):
+        flash('Apple Client ID not configured. Please add it to your .env file.', 'error')
+        return redirect(url_for('login'))
+    if not os.environ.get('APPLE_CLIENT_SECRET'):
+        flash('Apple Client Secret not configured. Please add it to your .env file.', 'error')
+        return redirect(url_for('login'))
+    redirect_uri = url_for('auth_callback', provider='apple', _external=True)
+    return apple.authorize_redirect(redirect_uri)
+
+@app.route('/auth/<provider>/callback')
+def auth_callback(provider):
+    try:
+        if provider == 'google':
+            if not os.environ.get('GOOGLE_CLIENT_SECRET'):
+                flash('Google Client Secret is missing. Please check your .env file.', 'error')
+                return redirect(url_for('login'))
+            token = google.authorize_access_token()
+            user_info = token.get('userinfo')
+            social_id = user_info.get('sub')
+            email = user_info.get('email')
+            name = user_info.get('name')
+            id_field = 'google_id'
+        elif provider == 'apple':
+            if not os.environ.get('APPLE_CLIENT_SECRET'):
+                flash('Apple Client Secret is missing. Please check your .env file.', 'error')
+                return redirect(url_for('login'))
+            token = apple.authorize_access_token()
+            user_info = token.get('userinfo')
+            social_id = user_info.get('sub')
+            email = user_info.get('email')
+            name = user_info.get('name', {}).get('firstName', '')
+            id_field = 'apple_id'
+        else:
+            flash('Invalid provider', 'error')
+            return redirect(url_for('login'))
+    except Exception as e:
+        flash(f'Authentication error: {str(e)}', 'error')
+        return redirect(url_for('login'))
+
+    if not social_id:
+        flash(f'Failed to get user info from {provider}', 'error')
+        return redirect(url_for('login'))
+
+    # Check if user already linked
+    user = User.query.filter(getattr(User, id_field) == social_id).first()
+    
+    if not user and email:
+        # Check if user exists by email but not linked
+        user = User.query.filter_by(email=email).first()
+        if user:
+            # Link it
+            setattr(user, id_field, social_id)
+            db.session.commit()
+    
+    if not user:
+        # Create new user
+        # Avoid username collision
+        base_username = email.split('@')[0] if email else f"{provider}_{social_id[:8]}"
+        username = base_username
+        count = 1
+        while User.query.filter_by(username=username).first():
+            username = f"{base_username}_{count}"
+            count += 1
+            
+        branch = Branch.query.first()
+        user = User(
+            username=username,
+            email=email,
+            name=name or username,
+            branch_id=branch.id if branch else 1,
+            is_admin=(User.query.count() == 0)
+        )
+        setattr(user, id_field, social_id)
+        db.session.add(user)
+        db.session.commit()
+
+    if user.is_denied:
+        flash('Your account has been denied access by an administrator.', 'error')
+        return redirect(url_for('login'))
+
+    if not user.is_approved:
+        flash('Your account is awaiting admin approval.', 'warning')
+        return redirect(url_for('login'))
+
+    # Log user in
+    session['user_id'] = user.id
+    session['username'] = user.username
+    session['is_admin'] = user.is_admin
+    flash(f'Successfully logged in with {provider.capitalize()}!', 'success')
+    
+    landing_page = getattr(user, 'landing_page', None) or 'dashboard'
+    try:
+        return redirect(url_for(landing_page))
+    except BuildError:
+        return redirect(url_for('dashboard'))
+
+@app.route('/settings')
+@login_required
+def settings():
+    user = User.query.get(session['user_id'])
+    return render_template('settings.html', user=user)
+
+@app.route('/api/settings/preferences', methods=['POST'])
+@login_required
+def update_preferences():
+    """Update user display preferences"""
+    try:
+        user = User.query.get(session['user_id'])
+        data = request.get_json()
+        
+        if 'chart_style' in data:
+            user.chart_style = data['chart_style']
+        if 'landing_page' in data:
+            user.landing_page = data['landing_page']
+            
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Preferences updated successfully'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+@app.route('/api/settings/profile', methods=['POST'])
+@login_required
+def update_profile():
+    """Update user profile information"""
+    try:
+        user = User.query.get(session['user_id'])
+        data = request.get_json()
+        
+        # Check for unique constraints before applying
+        if 'email' in data and data['email'] != user.email:
+            existing_email = User.query.filter_by(email=data['email']).first()
+            if existing_email:
+                return jsonify({'success': False, 'error': 'Email already in use by another account.'}), 400
+            user.email = data['email']
+            
+        if 'name' in data:
+            user.name = data['name']
+            
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Profile updated successfully'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+# =====================
+# HTMX SEARCH ROUTES
+# =====================
+@app.route('/api/search/products')
+@login_required
+def search_products_htmx():
+    query = request.args.get('q', '').strip()
+    if not query:
+        products = Product.query.order_by(Product.id.desc()).limit(100).all()
+    else:
+        search_filter = db.or_(
+            Product.name.ilike(f'%{query}%'),
+            Product.local_name.ilike(f'%{query}%'),
+            Product.sku.ilike(f'%{query}%'),
+            Product.barcode.ilike(f'%{query}%'),
+            Product.category.ilike(f'%{query}%'),
+            Product.brand.ilike(f'%{query}%')
+        )
+        products = Product.query.filter(search_filter).order_by(Product.id.desc()).all()
+    
+    return render_template('partials/product_table_rows.html', products=products)
+
+@app.route('/api/search/inventory')
+@login_required
+def search_inventory_htmx():
+    query = request.args.get('q', '').strip()
+    today = datetime.utcnow()
+    
+    if not query:
+        inventory = Inventory.query.order_by(Inventory.id.desc()).limit(100).all()
+    else:
+        # Search in product names and codes
+        search_filter = db.or_(
+            Product.name.ilike(f'%{query}%'),
+            Product.local_name.ilike(f'%{query}%'),
+            Product.sku.ilike(f'%{query}%'),
+            Product.barcode.ilike(f'%{query}%'),
+            Inventory.batch_number.ilike(f'%{query}%'),
+            Inventory.extra_info.ilike(f'%{query}%')
+        )
+        inventory = Inventory.query.join(Product).filter(search_filter).order_by(Inventory.id.desc()).all()
+    
+    return render_template('partials/inventory_table_rows.html', inventory=inventory, now=today)
+
+@app.route('/help')
+def help_page():
+    return render_template('help.html')
+
 @app.route('/')
 @login_required
 def dashboard():
     today = datetime.utcnow()
 
-    # Expiry ranges
+    # Expiry ranges (Core Data)
     expiring_0_90 = Inventory.query.filter(
         Inventory.expiry_date.between(today, today + timedelta(days=90)),
         Inventory.quantity_on_hand > 0
@@ -297,32 +722,58 @@ def dashboard():
     # Alerts
     alerts = Alert.query.filter_by(is_read=False).order_by(Alert.created_at.desc()).limit(10).all()
 
-    # Sales summary (using SaleItem)
-    sales_items = SaleItem.query.all()
-    total_sales = sum(item.price for item in sales_items)
+    # FEFO Chart Data 1: Expiry Status Distribution (Pie)
+    # Critical (<30d), Warning (30-90d), Safe (90+)
+    critical_count = Inventory.query.filter(
+        Inventory.expiry_date < today + timedelta(days=30),
+        Inventory.quantity_on_hand > 0
+    ).count()
+    
+    warning_count = len(expiring_0_90) - critical_count
+    
+    safe_count = Inventory.query.filter(
+        Inventory.expiry_date > today + timedelta(days=90),
+        Inventory.quantity_on_hand > 0
+    ).count()
 
-    product_sales = {}
-    for item in sales_items:
-        if item.product_id not in product_sales:
-            product_sales[item.product_id] = {
-                'name': item.product.name,
-                'quantity': 0,
-                'revenue': 0
-            }
-        product_sales[item.product_id]['quantity'] += item.quantity
-        product_sales[item.product_id]['revenue'] += item.price
+    expiry_labels = ["Immediate (<30d)", "Soon (30-90d)", "Safe (>90d)"]
+    expiry_values = [critical_count, warning_count, safe_count]
 
-    top_products = sorted(product_sales.values(), key=lambda x: x['quantity'], reverse=True)[:5]
+    # FEFO Chart Data 2: Nearest Expiry Histogram (Bar)
+    # Showing days remaining for top 10 items to move first
+    fefo_priority = Inventory.query.filter(
+        Inventory.expiry_date >= today,
+        Inventory.quantity_on_hand > 0
+    ).order_by(Inventory.expiry_date).limit(10).all()
+
+    fefo_labels = [item.product.name[:12] + '..' if len(item.product.name) > 12 else item.product.name for item in fefo_priority]
+    fefo_days = [(item.expiry_date - today).days for item in fefo_priority]
+
+    # Categorical Stock Distribution
+    category_data = db.session.query(
+        Product.category, 
+        db.func.sum(Inventory.quantity_on_hand)
+    ).join(Inventory).group_by(Product.category).all()
+    
+    cat_labels = [c[0] if c[0] else "Uncategorized" for c in category_data]
+    cat_values = [float(c[1]) if c[1] else 0 for c in category_data]
+
+    user = User.query.get(session['user_id'])
 
     return render_template(
         'dashboard.html',
-        total_sales=total_sales,
-        total_count=len(sales_items),
+        user=user,
         alerts=alerts,
-        top_products=top_products,
         expiring_0_90=expiring_0_90,
         expiring_180=expiring_180,
-        now=today
+        now=today,
+        # FEFO Metrics
+        expiry_labels=expiry_labels,
+        expiry_values=expiry_values,
+        fefo_labels=fefo_labels,
+        fefo_days=fefo_days,
+        cat_labels=cat_labels,
+        cat_values=cat_values
     )
 
 @app.route('/products', methods=['GET', 'POST'])
@@ -343,23 +794,41 @@ def products():
             
         if product:
             # Update existing
-            product.name = name
-            product.local_name = request.form.get('local_name', product.local_name)
-            product.description = request.form.get('description', product.description)
-            if sku: product.sku = sku
-            if barcode: product.barcode = barcode
-            if local_code: product.local_code = local_code
-            product.internal_code = request.form.get('internal_code', product.internal_code)
-            product.size_value = request.form.get('size_value', type=float) or product.size_value
-            product.size_unit = request.form.get('size_unit', product.size_unit)
-            product.pack_quantity = request.form.get('pack_quantity', type=int) or product.pack_quantity
-            product.pack_unit = request.form.get('pack_unit', product.pack_unit)
-            product.category = request.form.get('category', product.category)
-            product.brand = request.form.get('brand', product.brand)
-            product.supplier = request.form.get('supplier', product.supplier)
+            # Prioritize manual input, otherwise try to parse from name if fields are empty
+            size_val = request.form.get('size_value', type=float)
+            size_unit = request.form.get('size_unit')
+            pack_qty = request.form.get('pack_quantity', type=int)
+            pack_unit = request.form.get('pack_unit')
+            
+            # If manual input is missing, try parsing from name
+            if not size_val and not pack_qty:
+                parsed = parse_product_details(name)
+                product.size_value = parsed["unit_size"] if not size_val else size_val
+                product.size_unit = parsed["unit_measure"] if not size_unit else size_unit
+                product.pack_quantity = parsed["pack_qty"] if not pack_qty else pack_qty
+                product.pack_unit = parsed["pack_unit"] if not pack_unit else pack_unit
+            else:
+                if size_val: product.size_value = size_val
+                if size_unit: product.size_unit = size_unit
+                if pack_qty: product.pack_quantity = pack_qty
+                if pack_unit: product.pack_unit = pack_unit
+
             flash('Product updated (merged)!', 'success')
         else:
             # Create new
+            size_val = request.form.get('size_value', type=float)
+            size_unit = request.form.get('size_unit')
+            pack_qty = request.form.get('pack_quantity', type=int)
+            pack_unit = request.form.get('pack_unit')
+            
+            # Smart parsing for new products if manual input is missing
+            if not size_val and not pack_qty:
+                parsed = parse_product_details(name)
+                size_val = parsed["unit_size"]
+                size_unit = parsed["unit_measure"]
+                pack_qty = parsed["pack_qty"]
+                pack_unit = parsed["pack_unit"]
+
             product = Product(
                 name=name,
                 local_name=request.form.get('local_name', ''),
@@ -368,21 +837,22 @@ def products():
                 barcode=barcode,
                 local_code=local_code,
                 internal_code=request.form.get('internal_code'),
-                size_value=request.form.get('size_value', type=float),
-                size_unit=request.form.get('size_unit'),
-                pack_quantity=request.form.get('pack_quantity', type=int),
-                pack_unit=request.form.get('pack_unit'),
+                size_value=size_val,
+                size_unit=size_unit,
+                pack_quantity=pack_qty,
+                pack_unit=pack_unit,
                 category=request.form.get('category'),
                 brand=request.form.get('brand', ''),
                 supplier=request.form.get('supplier', '')
             )
             db.session.add(product)
+            db.session.flush() # Get ID for inventory if needed later
             flash('Product created!', 'success')
             
         db.session.commit()
         return redirect(url_for('products'))
     
-    products_list = Product.query.order_by(Product.name).all()
+    products_list = Product.query.order_by(Product.id.desc()).limit(100).all()
     return render_template('products.html', products=products_list)
 
 @app.route('/inventory', methods=['GET', 'POST'])
@@ -462,32 +932,63 @@ def inventory():
                          selected_product_id=selected_product_id,
                          now=datetime.utcnow())
 
+@app.route('/sales', methods=['GET'])
+@login_required
+def sales():
+    sales_list = Sale.query.order_by(Sale.sale_date.desc()).all()
+    products_list = Product.query.all()
+    return render_template('sales.html', sales=sales_list, products=products_list)
+
 @app.route('/sales', methods=['POST'])
 @login_required
-def create_sale_items():
+def create_sale():
     data = request.get_json()
-    total = 0
-    for item in data['items']:
-        product = Product.query.get(item['product_id'])
-        quantity = int(item['quantity'])
-        # Add this line to get the price from the request!
-        price = float(item.get('price', 0)) 
-
-        inv = Inventory.query.filter_by(product_id=product.id, branch_id=1).first()
-        if inv and inv.quantity_on_hand >= quantity:
-            inv.quantity_on_hand -= quantity
-        else:
-            db.session.rollback()
-            return jsonify({'error': 'Insufficient stock'}), 400
-
-        # Now 'price' is defined and won't crash
-        sale_item = SaleItem(product_id=product.id, quantity=quantity, price=price)
-       
-        db.session.add(sale_item)
-        total += price
-
-    db.session.commit()
-    return jsonify({'success': True, 'total': total})
+    items_data = data.get('items', [])
+    payment_type = data.get('payment_type', 'CASH')
+    
+    if not items_data:
+        return jsonify({'success': False, 'error': 'No items in sale'}), 400
+        
+    try:
+        total_amount = 0
+        sale_items = []
+        
+        for item in items_data:
+            product = Product.query.get(item['product_id'])
+            if not product:
+                continue
+                
+            quantity = int(item['quantity'])
+            # Use unit_price from product as default if not provided
+            price = float(item.get('price', product.unit_price or 0))
+            
+            # Check inventory (branch 1 for now)
+            inv = Inventory.query.filter_by(product_id=product.id, branch_id=1).first()
+            if inv and inv.quantity_on_hand >= quantity:
+                inv.quantity_on_hand -= quantity
+            else:
+                db.session.rollback()
+                return jsonify({'success': False, 'error': f'Insufficient stock for {product.name}'}), 400
+                
+            sale_item = SaleItem(product_id=product.id, quantity=quantity, price=price * quantity)
+            sale_items.append(sale_item)
+            total_amount += price * quantity
+            
+        new_sale = Sale(
+            user_id=session.get('user_id'),
+            branch_id=1,
+            total_amount=total_amount,
+            payment_type=payment_type,
+            items=sale_items
+        )
+        
+        db.session.add(new_sale)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'total': total_amount})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 400
 
 
 @app.route('/search-product', methods=['POST'])
@@ -596,6 +1097,17 @@ def internal_error(error):
 # =====================
 # HELPERS
 # =====================
+def validate_email(email):
+    """Simple email validation regex"""
+    if not email: return False
+    return re.match(r"[^@]+@[^@]+\.[^@]+", email) is not None
+
+def validate_phone(phone):
+    """Simple phone validation (Ethiopian or Generic)"""
+    if not phone: return False
+    # Matches +251..., 09..., etc.
+    return re.match(r"^(\+251|0)[1-9]\d{8}$", phone) is not None
+
 def sanitize_unique_field(value):
     """Convert empty strings to None for unique fields to avoid constraint violations"""
     if value is None:
@@ -803,6 +1315,13 @@ def import_products():
                     if brand: existing.brand = brand
                     if supplier: existing.supplier = supplier
                     if barcode: existing.barcode = barcode
+                    
+                    # Sync missing product info from parsed name
+                    if not existing.size_value: existing.size_value = parsed["unit_size"]
+                    if not existing.size_unit: existing.size_unit = parsed["unit_measure"]
+                    if not existing.pack_quantity: existing.pack_quantity = parsed["pack_qty"]
+                    if not existing.pack_unit: existing.pack_unit = parsed["pack_unit"]
+                    
                     merged_count += 1
                     product = existing
                 else:
@@ -814,7 +1333,11 @@ def import_products():
                         barcode=barcode,
                         category=category,
                         brand=brand,
-                        supplier=supplier
+                        supplier=supplier,
+                        size_value=parsed["unit_size"],
+                        size_unit=parsed["unit_measure"],
+                        pack_quantity=parsed["pack_qty"],
+                        pack_unit=parsed["pack_unit"]
                     )
                     db.session.add(product)
                     db.session.flush()
@@ -862,13 +1385,28 @@ def import_products():
             
             session['last_import_log'] = log_filename
 
+        # Save to History
+        new_log = ImportLog(
+            filename=file.filename if file else sheet_url,
+            import_type='FILE' if file else 'GOOGLE_SHEET',
+            added_count=added_count,
+            merged_count=merged_count,
+            failed_count=len(failed_rows),
+            log_filename=log_filename
+        )
+        db.session.add(new_log)
+        db.session.commit()
+
+        history = ImportLog.query.order_by(ImportLog.created_at.desc()).all()
         return render_template('import_products.html', 
                              added=added_count, 
                              merged=merged_count, 
                              failed=len(failed_rows), 
-                             log_file=log_filename)
+                             log_file=log_filename,
+                             history=history)
 
-    return render_template('import_products.html')
+    history = ImportLog.query.order_by(ImportLog.created_at.desc()).all()
+    return render_template('import_products.html', history=history)
 
 @app.route('/download-import-log/<filename>')
 @login_required
@@ -955,32 +1493,57 @@ def update_product(product_id):
         data = request.get_json()
         
         # Update fields
-        product.name = data.get('name', product.name)
-        product.local_name = data.get('local_name', product.local_name)
-        product.description = data.get('description', product.description)
-        product.sku = sanitize_unique_field(data.get('sku', product.sku))
-        product.barcode = sanitize_unique_field(data.get('barcode', product.barcode))
-        product.local_code = sanitize_unique_field(data.get('local_code', product.local_code))
-        product.internal_code = data.get('internal_code', product.internal_code)
-        product.category = data.get('category', product.category)
-        product.brand = data.get('brand', product.brand)
-        product.supplier = data.get('supplier', product.supplier)
+        # Update basic fields
+        if 'name' in data: product.name = data['name']
+        if 'local_name' in data: product.local_name = data['local_name']
+        if 'description' in data: product.description = data['description']
+        if 'sku' in data: product.sku = sanitize_unique_field(data['sku'])
+        if 'barcode' in data: product.barcode = sanitize_unique_field(data['barcode'])
+        if 'local_code' in data: product.local_code = sanitize_unique_field(data['local_code'])
+        if 'internal_code' in data: product.internal_code = data['internal_code']
+        if 'category' in data: product.category = data['category']
+        if 'brand' in data: product.brand = data['brand']
+        if 'supplier' in data: product.supplier = data['supplier']
         
-        # Sync structured info if name changed
-        parsed = parse_product_details(product.name)
-        product.size_value = parsed["unit_size"]
-        product.size_unit = parsed["unit_measure"]
-        product.pack_quantity = parsed["pack_qty"]
-        product.pack_unit = parsed["pack_unit"]
+        # Handle Size/Pack info: Prioritize manual input from JSON
+        size_val = data.get('size_value')
+        size_unit = data.get('size_unit')
+        pack_qty = data.get('pack_quantity')
+        pack_unit = data.get('pack_unit')
+        
+        # If manual input is provided (even if partial), use it.
+        # Otherwise, if name was updated and we don't have these, try parsing.
+        has_manual = size_val is not None or pack_qty is not None
+        
+        if not has_manual and 'name' in data:
+            parsed = parse_product_details(product.name)
+            # Only update if parsing actually found something useful
+            if parsed["unit_size"]:
+                product.size_value = parsed["unit_size"]
+                product.size_unit = parsed["unit_measure"]
+            if parsed["pack_qty"] > 1:
+                product.pack_quantity = parsed["pack_qty"]
+                product.pack_unit = parsed["pack_unit"]
+        else:
+            if size_val is not None: product.size_value = float(size_val) if size_val != '' else None
+            if size_unit is not None: product.size_unit = size_unit
+            if pack_qty is not None: product.pack_quantity = int(pack_qty) if pack_qty != '' else None
+            if pack_unit is not None: product.pack_unit = pack_unit
         
         # Sync with Inventory (default branch)
         inv = Inventory.query.filter_by(product_id=product.id, branch_id=1).first()
         if inv:
-            inv.unit_size = parsed["unit_size"]
-            inv.unit_measure = parsed["unit_measure"]
-            inv.pack_qty = parsed["pack_qty"]
-            inv.pack_unit = parsed["pack_unit"]
-            inv.extra_info = parsed["extra_info"]
+            # Sync product values to inventory
+            inv.unit_size = product.size_value
+            inv.unit_measure = product.size_unit
+            inv.pack_qty = product.pack_quantity or 1
+            inv.pack_unit = product.pack_unit or 'Pcs'
+            
+            # If we just updated the name, maybe we can update extra_info too
+            if 'name' in data:
+                parsed = parse_product_details(product.name)
+                if parsed.get("extra_info"):
+                    inv.extra_info = parsed["extra_info"]
         
         db.session.commit()
         
@@ -1056,6 +1619,40 @@ def get_product(product_id):
         }
     })
 
+@app.route('/reports')
+@login_required
+def reports():
+    """Render the advanced reports page."""
+    products = Product.query.all()
+    inventory = Inventory.query.all()
+    
+    # Serialize for frontend Chart.js use
+    import json
+    p_data = [{
+        'id': p.id,
+        'name': p.name,
+        'category': p.category,
+        'brand': p.brand,
+        'supplier': p.supplier,
+        'created_at': p.created_at.isoformat() if p.created_at else None
+    } for p in products]
+    
+    i_data = [{
+        'id': i.id,
+        'product_id': i.product_id,
+        'quantity_on_hand': i.quantity_on_hand,
+        'expiry_date': i.expiry_date.isoformat() if i.expiry_date else None,
+        'status': i.status,
+        'batch_number': i.batch_number
+    } for i in inventory]
+
+    return render_template('reports.html', 
+                           products=products, 
+                           inventory=inventory,
+                           products_json=json.dumps(p_data),
+                           inventory_json=json.dumps(i_data),
+                           now=datetime.utcnow())
+
 @app.route('/api/admin/reset-database', methods=['POST'])
 @login_required
 def reset_database_api():
@@ -1074,9 +1671,8 @@ def reset_database_api():
         return jsonify({'success': False, 'error': str(e)}), 400
 
 
+
 if __name__ == "__main__":
     with app.app_context():
         initialize_database(app)
     app.run(debug=True)
-
-

@@ -10,31 +10,86 @@
             <span class="logo-text-large">በሽ ገበያ</span>
             <span class="logo-subtitle-large">Besh Gebeya</span>
         </div>
-        <h2>Create Your Account</h2>
-        
+        <h2 data-en="Create Your Account" data-am="መለያዎን ይፍጠሩ">Create Your Account</h2>
+
         <form method="POST" action="{{ url_for('signup') }}">
             <div class="form-group">
                 <label for="username">Username</label>
-                <input type="text" id="username" name="username" required>
+                <input type="text" id="username" name="username" required placeholder="Pick a unique username">
             </div>
-            
+
             <div class="form-group">
-                <label for="email">Email</label>
-                <input type="email" id="email" name="email" required>
+                <label for="email">Email or Phone Number</label>
+                <input type="text" id="email" name="email" required placeholder="example@mail.com or +251...">
             </div>
-            
+
             <div class="form-group">
                 <label for="password">Password</label>
-                <input type="password" id="password" name="password" required minlength="8">
+                <div class="password-wrapper">
+                    <input type="password" id="password" name="password" required minlength="8">
+                    <span class="password-toggle" onclick="togglePasswordVisibility('password')">
+                        <svg id="eye-icon-password" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                            <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                    </span>
+                </div>
                 <small>Minimum 8 characters</small>
             </div>
-            
-            <button type="submit" class="btn-primary">Create Account</button>
+
+            <button type="submit" class="btn-primary" style="width: 100%;" data-en="Create Account"
+                data-am="መለያ ፍጠር">Create Account</button>
         </form>
-        
+
+        <div class="social-auth-separator">
+            <span data-en="Or sign up with" data-am="ወይም በዚህ ይመዝገቡ">Or sign up with</span>
+        </div>
+
+        <div class="social-auth-buttons">
+            <a href="{{ url_for('login_google') }}" class="social-btn google-btn"
+                style="text-decoration: none; color: inherit; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                <svg width="20" height="20" viewBox="0 0 24 24">
+                    <path fill="#EA4335"
+                        d="M24 12.27c0-.85-.07-1.66-.21-2.44H12.23v4.62h6.59c-.28 1.5-1.13 2.76-2.41 3.61v3h3.89c2.28-2.1 3.7-5.18 3.7-8.19z" />
+                    <path fill="#34A853"
+                        d="M12.23 24c3.24 0 5.96-1.07 7.95-2.91l-3.89-3c-1.08.73-2.47 1.16-4.06 1.16-3.12 0-5.76-2.11-6.7-4.94H1.54v3.13C3.52 21.37 7.6 24 12.23 24z" />
+                    <path fill="#FBBC05"
+                        d="M5.53 14.31c-.24-.72-.37-1.49-.37-2.31s.14-1.59.37-2.31V6.56H1.54C.56 8.51 0 10.7 0 13s.56 4.49 1.54 6.44l3.99-3.13z" />
+                    <path fill="#4285F4"
+                        d="M12.23 4.75c1.77 0 3.35.61 4.6 1.8l3.45-3.45C18.18 1.17 15.47 0 12.23 0 7.6 0 3.52 2.63 1.54 6.56L5.53 9.69c.94-2.83 3.58-4.94 6.7-4.94z" />
+                </svg>
+                Google
+            </a>
+            <a href="{{ url_for('login_apple') }}" class="social-btn apple-btn"
+                style="text-decoration: none; color: inherit; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                <svg width="20" height="20" viewBox="0 0 24 24">
+                    <path fill="currentColor"
+                        d="M17.05 20.28c-.96.95-2.22 1.78-3.73 1.72-1.42-.05-2.2-.84-3.69-.84-1.5 0-2.32.81-3.66.86-1.46.06-2.85-.92-3.84-1.92-2.02-2-3.08-5.32-1.93-8.1 1.05-2.54 3.44-4.14 5.86-4.14 1.48 0 2.5 1 3.4 1 1.05 0 2.05-1.05 3.75-1.05 1.45 0 2.92.82 3.82 2.04-3.1 1.82-2.6 6.06.5 7.42-.74 1.86-1.74 3.52-2.48 4.25zM12.03 5.48c-.12-2.08 1.6-3.88 3.54-3.9 0 0 .34 2.22-1.72 4.18-1.55 1.48-3.18 1.25-3.18 1.25h-.02z" />
+                </svg>
+                Apple
+            </a>
+        </div>
+
         <p class="auth-link">
             Already have an account? <a href="{{ url_for('login') }}">Login</a>
         </p>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function togglePasswordVisibility(fieldId) {
+        const input = document.getElementById(fieldId);
+        const icon = document.getElementById('eye-icon-' + fieldId);
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>';
+        } else {
+            input.type = 'password';
+            icon.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>';
+        }
+    }
+</script>
 {% endblock %}

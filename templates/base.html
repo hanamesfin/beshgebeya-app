@@ -5,29 +5,63 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}BeshGebeya Tracker{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+    <!-- Modern Tech Stack (HTMX, Alpine, GSAP) -->
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+
+    <script>
+        // Global Theme & Language Loader (prevents flash)
+        const savedTheme = localStorage.getItem('theme') || 'auto';
+        if (savedTheme === 'dark' || (savedTheme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+
+        const savedLang = localStorage.getItem('lang') || 'en';
+        document.documentElement.setAttribute('lang', savedLang);
+    </script>
 </head>
 
-<body>
+<body class="{% block body_class %}{% endblock %}" data-theme="light" x-data="{ 
+    theme: localStorage.getItem('theme') || 'auto',
+    lang: localStorage.getItem('lang') || 'en',
+    toggleTheme() {
+        this.theme = this.theme === 'dark' ? 'light' : 'dark';
+        localStorage.setItem('theme', this.theme);
+        if (this.theme === 'dark') document.documentElement.classList.add('dark');
+        else document.documentElement.classList.remove('dark');
+    }
+}">
     {% if session.user_id %}
-    <header id="mainHeader" class="navbar" role="banner">
-        <div class="container">
+    <header class="main-header" id="mainHeader">
+        <div class="container" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
             <div class="nav-brand">
                 <a href="{{ url_for('dashboard') }}">
                     <img src="{{ url_for('static', filename='images/logo.png') }}" alt="BeshGebeya Logo"
-                        class="nav-logo">
-
+                        class="nav-logo" style="height: 44px; filter: brightness(0) invert(1);">
                 </a>
             </div>
-            <div class="nav-links">
-                <a href="{{ url_for('dashboard') }}">Dashboard</a>
-                <a href="{{ url_for('products') }}">Products</a>
-                <a href="{{ url_for('inventory') }}">Inventory</a>
-                <a href="{{ url_for('import_products') }}">Import</a>
-            </div>
+
+            <nav class="nav-links">
+                <a href="{{ url_for('dashboard') }}" data-path="/" data-en="Dashboard" data-am="ዳሽቦርድ">Dashboard</a>
+                <a href="{{ url_for('products') }}" data-path="/products" data-en="Products" data-am="ምርቶች">Products</a>
+                <a href="{{ url_for('inventory') }}" data-path="/inventory" data-en="Inventory"
+                    data-am="እቃዎች">Inventory</a>
+                <a href="{{ url_for('import_products') }}" data-path="/import-products" data-en="Import"
+                    data-am="አስገባ">Import</a>
+            </nav>
+
             <div class="nav-user">
-                <span>Welcome, {{ session.username }}!</span>
-                <a href="{{ url_for('logout') }}" class="btn-logout">Logout</a>
+                <span class="user-welcome" data-en="Welcome, {{ session.username }}!"
+                    data-am="እንኳን ደህና መጡ, {{ session.username }}!">Welcome, {{ session.username }}!</span>
+                <a href="{{ url_for('logout') }}" class="logout-btn" data-en="Logout" data-am="ውጣ">Logout</a>
             </div>
         </div>
     </header>
@@ -46,17 +80,204 @@
         {% endwith %}
     </div>
 
+    <!-- Toast Notification Container -->
+    <div id="toast-container"></div>
+
+    <!-- Premium Success Animation Overlay (Blue Shopping Bag + Emoji + Arc) -->
+    <div class="success-overlay-container" id="successOverlay">
+        <div class="animation-stage">
+            <div class="bag-container" id="bagContainer">
+                <div class="blue-shopping-bag"></div>
+                <div class="flying-emoji" id="successEmoji">📦</div>
+            </div>
+            <div class="arc-circle-container">
+                <svg viewBox="0 0 100 100" class="arc-svg">
+                    <circle cx="50" cy="50" r="45" class="unconnected-circle" id="arcCircle"></circle>
+                </svg>
+                <div class="success-checkmark" id="arcCheck">✓</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bulk Import Animation Overlay (Falling Items) -->
+    <div class="import-overlay-container" id="importOverlay">
+        <div class="falling-items-stage" id="itemsStage"></div>
+        <div class="import-result-stage">
+            <div class="arc-circle-container">
+                <svg viewBox="0 0 100 100" class="arc-svg">
+                    <circle cx="50" cy="50" r="45" class="unconnected-circle" id="importArcCircle"></circle>
+                </svg>
+                <div class="success-checkmark" id="importArcCheck">✓</div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        /* Advanced Animation Styles */
+        .success-overlay-container,
+        .import-overlay-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(10px);
+            z-index: 20000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        .animation-stage {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .blue-shopping-bag {
+            width: 100px;
+            height: 120px;
+            background: #2563eb;
+            border-radius: 12px 12px 4px 4px;
+            position: relative;
+            box-shadow: 0 10px 30px rgba(37, 99, 235, 0.4);
+        }
+
+        .blue-shopping-bag::before {
+            content: '';
+            position: absolute;
+            top: -20px;
+            left: 20px;
+            right: 20px;
+            height: 40px;
+            border: 6px solid #1d4ed8;
+            border-bottom: none;
+            border-radius: 20px 20px 0 0;
+        }
+
+        .flying-emoji {
+            position: absolute;
+            font-size: 50px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 2;
+        }
+
+        .arc-circle-container {
+            position: relative;
+            width: 120px;
+            height: 120px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .arc-svg {
+            width: 100%;
+            height: 100%;
+            transform: rotate(-90deg);
+        }
+
+        .unconnected-circle {
+            fill: none;
+            stroke: #3b82f6;
+            stroke-width: 8;
+            stroke-linecap: round;
+            stroke-dasharray: 210 283;
+            /* 210 is roughly 3/4 of the circle */
+            stroke-dashoffset: 283;
+            transition: stroke-dashoffset 1s ease-out;
+        }
+
+        .unconnected-circle.active {
+            stroke-dashoffset: 0;
+            animation: rotateArc 2s linear infinite;
+        }
+
+        @keyframes rotateArc {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .success-checkmark {
+            position: absolute;
+            font-size: 60px;
+            color: #ffffff;
+            font-weight: 800;
+            opacity: 0;
+            transform: scale(0.5);
+            transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .success-checkmark.visible {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        /* Import Animation Specifics */
+        .falling-items-stage {
+            position: absolute;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        .falling-item {
+            position: absolute;
+            font-size: 30px;
+            top: -50px;
+            animation: fallAnimation 1.5s linear forwards;
+        }
+
+        @keyframes fallAnimation {
+            to {
+                transform: translateY(110vh) rotate(360deg);
+            }
+        }
+    </style>
+
+    <!-- UI Sounds -->
+    <audio id="successSound" src="https://cdn.pixabay.com/audio/2022/03/15/audio_783333_1647366373.mp3"
+        preload="auto"></audio>
+    <audio id="deleteSound" src="https://cdn.pixabay.com/audio/2022/03/15/audio_ea3bce904d.mp3" preload="auto"></audio>
+
     <main class="container">
-        {% block content %}{% endblock %}
+        <div id="page-content">
+            {% block content %}{% endblock %}
+        </div>
     </main>
 
-    <footer>
-        <div class="container">
-            <p>&copy; 2026 BeshGebeya Tracker - Fresh Market Inventory Management</p>
+    <footer class="app-footer">
+        <div class="footer-left">
+            © 2026 BeshGebeya
+        </div>
+
+        <div class="footer-right" style="display: flex; gap: 20px;">
+            <a href="{{ url_for('settings') }}" class="help-anchor">
+                <span class="blue-emoji">⚙️</span> <span data-en="Settings" data-am="ቅንብሮች">Settings</span>
+            </a>
+            <a href="{{ url_for('help_page') }}" class="help-anchor">
+                <span class="blue-emoji">❓</span> <span data-en="Help & User Guide" data-am="የእገዛ መመሪያ">Help & User
+                    Guide</span>
+            </a>
         </div>
     </footer>
 
     {% block scripts %}{% endblock %}
+    <script src="https://unpkg.com/html5-qrcode"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}" defer></script>
 
 

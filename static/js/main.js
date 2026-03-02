@@ -3,6 +3,205 @@
 // Behavior: pins header to top, shrinks after scrollThreshold
 
 // =====================
+// GLOBAL THEME & LANG
+// =====================
+document.addEventListener('DOMContentLoaded', () => {
+  // Dynamic Translation Applier
+  function applyGlobalTranslations() {
+    const lang = localStorage.getItem('lang') || 'en';
+    document.documentElement.setAttribute('lang', lang);
+    document.querySelectorAll('[data-en]').forEach(el => {
+      const translation = el.getAttribute(`data-${lang}`);
+      if (translation) {
+        if (el.tagName === 'INPUT' && el.hasAttribute('placeholder')) {
+          el.placeholder = translation;
+        } else if (el.tagName === 'OPTION') {
+          el.innerText = translation;
+        } else {
+          el.innerText = translation;
+        }
+      }
+    });
+  }
+
+  applyGlobalTranslations();
+  window.applyGlobalTranslations = applyGlobalTranslations; // Expose for HTMX usage
+
+  // HTMX Global Hooks for GSAP & Translations
+  document.addEventListener('htmx:afterSwap', (event) => {
+    // 1. Re-apply translations to new content
+    applyGlobalTranslations();
+
+    // 2. Trigger GSAP Stagger Reveal for matching elements
+    const newItems = event.detail.elt.querySelectorAll('.stagger-reveal');
+    if (newItems.length > 0) {
+      gsap.fromTo(newItems,
+        {
+          opacity: 0,
+          y: 20,
+          filter: 'blur(5px)'
+        },
+        {
+          opacity: 1,
+          y: 0,
+          filter: 'blur(0px)',
+          duration: 0.6,
+          stagger: 0.05,
+          ease: 'expo.out'
+        }
+      );
+    }
+  });
+
+  // ChatGPT Style Scroll Down Arrow
+  const scrollArrow = document.createElement('div');
+  scrollArrow.className = 'scroll-bottom-btn';
+  scrollArrow.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 13l5 5 5-5M7 6l5 5 5-5"/></svg>';
+  document.body.appendChild(scrollArrow);
+
+  const checkScroll = () => {
+    // Show only on inventory, product, and admin pages
+    const path = window.location.pathname;
+    const allowed = ['/', '/inventory', '/products', '/admin-panel', '/reports', '/import-products', '/sales'].some(p => {
+      if (p === '/') return path === '/';
+      return path.includes(p);
+    });
+
+    if (!allowed) {
+      scrollArrow.classList.remove('visible');
+      return;
+    }
+
+    const scrollable = document.documentElement.scrollHeight - window.innerHeight > 400;
+    const atBottom = window.innerHeight + window.pageYOffset >= document.documentElement.scrollHeight - 150;
+    const nearTop = window.pageYOffset < 300;
+
+    if (scrollable) {
+      if (atBottom) {
+        scrollArrow.classList.add('visible', 'up');
+      } else if (nearTop) {
+        scrollArrow.classList.add('visible');
+        scrollArrow.classList.remove('up');
+      } else {
+        // Between top and bottom, keep visible but respect direction
+        scrollArrow.classList.add('visible');
+      }
+    } else {
+      scrollArrow.classList.remove('visible');
+    }
+  };
+
+  window.addEventListener('scroll', checkScroll);
+  window.addEventListener('resize', checkScroll);
+  scrollArrow.addEventListener('click', () => {
+    if (scrollArrow.classList.contains('up')) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    }
+  });
+
+  // Footer Status Logic
+  const footerLeft = document.querySelector('.footer-left');
+  if (footerLeft) {
+    const statusDiv = document.createElement('div');
+    statusDiv.className = 'footer-status';
+    statusDiv.style.marginTop = '4px';
+    statusDiv.style.fontSize = '0.75rem';
+    statusDiv.style.opacity = '0.7';
+    statusDiv.style.display = 'flex';
+    statusDiv.style.gap = '15px';
+
+    statusDiv.innerHTML = `
+      <span><span class="status-dot pulsing"></span> <span data-en="Live Connection" data-am="ቀጥታ መገናኛ">Live Connection</span></span>
+      <span id="footer-time" style="font-family: monospace;"></span>
+    `;
+    footerLeft.appendChild(statusDiv);
+
+    const updateTime = () => {
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      const timeEl = document.getElementById('footer-time');
+      if (timeEl) timeEl.innerText = 'Refreshed: ' + timeStr;
+    };
+    updateTime();
+    setInterval(updateTime, 1000);
+  }
+
+  // Initial check
+  setTimeout(checkScroll, 500);
+
+  // Global staggered entrance for standard pages
+  const entranceItems = document.querySelectorAll('.crystal-card, .data-table, .page-header h1, .section-header');
+  if (entranceItems.length > 0) {
+    gsap.from(entranceItems, {
+      opacity: 0,
+      y: 30,
+      duration: 0.8,
+      stagger: 0.1,
+      ease: "expo.out",
+      clearProps: "all"
+    });
+  }
+});
+
+// Dashboard Card Expansion logic
+let expandedCards = [];
+function focusCard(card) {
+  const grid = document.getElementById('dashboardGrid');
+  if (!grid) return;
+
+  const cardId = card.getAttribute('data-card');
+  const index = expandedCards.indexOf(cardId);
+  const allCards = document.querySelectorAll('.crystal-card[data-card]');
+
+  if (index > -1) {
+    expandedCards.splice(index, 1);
+    card.classList.remove('expanded');
+  } else {
+    expandedCards.push(cardId);
+    card.classList.add('expanded');
+  }
+
+  // Reset all orders first
+  allCards.forEach(c => c.style.order = "0");
+
+  // Update grid stage and apply strict ordering
+  grid.classList.remove('expand-stage-1', 'expand-stage-2');
+
+  if (expandedCards.length === 1) {
+    grid.classList.add('expand-stage-1');
+    const active = document.querySelector(`[data-card="${expandedCards[0]}"]`);
+    if (active) active.style.order = "-1";
+  } else if (expandedCards.length >= 2) {
+    grid.classList.add('expand-stage-2');
+    expandedCards.forEach((id, i) => {
+      const active = document.querySelector(`[data-card="${id}"]`);
+      if (active) active.style.order = i;
+    });
+    allCards.forEach(c => {
+      if (!expandedCards.includes(c.getAttribute('data-card'))) {
+        c.style.order = "99";
+      }
+    });
+  }
+
+  // GSAP Smooth Transition for content visibility
+  gsap.from(card.querySelector('.card-content'), {
+    opacity: 0,
+    height: 0,
+    duration: 0.5,
+    ease: "power2.out"
+  });
+
+  // Gentle scroll to keep the focused section in view
+  setTimeout(() => {
+    card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, 150);
+}
+window.focusCard = focusCard;
+
+// =====================
 // PRODUCT MANAGEMENT
 // =====================
 const ProductManager = {
@@ -99,8 +298,9 @@ const ProductManager = {
       const data = await response.json();
 
       if (data.success) {
-        Toast.success('Product updated successfully!');
-        setTimeout(() => window.location.reload(), 1000);
+        showSuccessAnimation('📦', () => {
+          window.location.reload();
+        });
       } else {
         Toast.error(data.error || 'Failed to update product');
       }
@@ -127,8 +327,9 @@ const ProductManager = {
       const data = await response.json();
 
       if (data.success) {
-        Toast.success('Product deleted successfully!');
-        setTimeout(() => window.location.reload(), 1000);
+        showSuccessAnimation('🗑️', () => {
+          window.location.reload();
+        });
       } else {
         Toast.error(data.error || 'Failed to delete product');
       }
@@ -164,19 +365,20 @@ const ProductManager = {
     var position = cs.getPropertyValue('position');
     // If header is fixed (removed from flow), we must add padding to main.
     if (position === 'fixed') {
-      // Prefer offsetHeight for integer pixel value
-      var h = header.offsetHeight || Math.ceil(header.getBoundingClientRect().height) || 0;
-      // read CSS variable for small extra offset (defaults to 4px)
-      var offsetVal = cs.getPropertyValue('--header-offset') || '4px';
-      var offset = 4;
+      // Prefer getBoundingClientRect for accurate sub-pixel and transformed height
+      var rect = header.getBoundingClientRect();
+      var h = rect.height || header.offsetHeight || 0;
+      // read CSS variable for small extra offset (defaults to 12px for more breathing room)
+      var offsetVal = cs.getPropertyValue('--header-offset') || '12px';
+      var offset = 12;
       try {
         offset = parseInt(offsetVal.trim(), 10) || 4;
       } catch (e) {
         offset = 4;
       }
-      // Safety clamp: do not allow padding larger than half the viewport or 150px
-      var maxSafe = Math.min(150, Math.floor((window.innerHeight || 800) / 2));
-      var desired = h + offset;
+      // Safety clamp: do not allow padding larger than 250px (accommodates taller mobile headers)
+      var maxSafe = 250;
+      var desired = h + (offset || 20); // Default to 20px offset
       if (desired > maxSafe) desired = maxSafe;
       // If there are flash messages, move the flash below the header. Otherwise pad main.
       var hasFlash = flash && flash.children && flash.children.length;
@@ -200,30 +402,8 @@ const ProductManager = {
     window.requestAnimationFrame(function () {
       rafScheduled = false;
       var scrollY = window.scrollY || window.pageYOffset;
-      // progressive shrink: compute progress 0..1 based on threshold
-      var progress = 0;
-      if (scrollThreshold > 0) progress = Math.min(1, scrollY / scrollThreshold);
+      var shouldShrink = scrollY > 100; // Increased threshold to match the taller header
 
-      // interpolate CSS variables between max and min (with easing)
-      try {
-        if (header._shrinkVars) {
-          var v = header._shrinkVars;
-          // ease out cubic for a smooth start
-          var eased = 1 - Math.pow(1 - progress, 3);
-          var pad = Math.round(lerp(v.paddingMax, v.paddingMin, eased));
-          var logoH = Math.round(lerp(v.logoHMax, v.logoHMin, eased));
-          var logoF = lerp(v.logoFMax, v.logoFMin, eased);
-          header.style.setProperty('--header-padding', pad + 'px');
-          header.style.setProperty('--logo-height', logoH + 'px');
-          // logo font uses px units after conversion
-          header.style.setProperty('--logo-font', logoF + 'px');
-        }
-      } catch (e) {
-        // ignore any parse errors and fall back to class toggle
-      }
-
-      // keep legacy shrink class (useful for CSS fallbacks)
-      var shouldShrink = progress > 0.01; // start shrinking almost immediately
       if (shouldShrink && !isShrunk) {
         header.classList.add('shrink');
         isShrunk = true;
@@ -232,7 +412,6 @@ const ProductManager = {
         isShrunk = false;
       }
 
-      // update placeholder so main padding follows header height changes
       updatePlaceholder();
     });
   }
@@ -247,20 +426,30 @@ const ProductManager = {
     updatePlaceholder();
   }
 
+  function getBaseDocHeight() {
+    var docH = Math.max(document.documentElement.scrollHeight, document.body.scrollHeight);
+    var paddingOffset = 0;
+    if (footerVisible && footer) {
+      paddingOffset = Math.ceil(footer.getBoundingClientRect().height);
+    }
+    return docH - paddingOffset;
+  }
+
   function isAtBottom() {
     var scrollY = window.scrollY || window.pageYOffset;
-    var docH = Math.max(document.documentElement.scrollHeight, document.body.scrollHeight);
+    var baseDocH = getBaseDocHeight();
     var viewH = window.innerHeight || document.documentElement.clientHeight;
-    return (scrollY + viewH) >= (docH - footerThreshold);
+    return (scrollY + viewH) >= (baseDocH - footerThreshold);
   }
 
   function updateFooterVisibility() {
     if (!footer || !main) return;
     var docH = Math.max(document.documentElement.scrollHeight, document.body.scrollHeight);
+    var baseDocH = getBaseDocHeight();
     var viewH = window.innerHeight || document.documentElement.clientHeight;
 
     var shouldShow = false;
-    if (docH <= viewH) {
+    if (baseDocH <= viewH) {
       shouldShow = true; // page shorter than viewport
     } else if (isAtBottom()) {
       shouldShow = true; // scrolled to bottom
@@ -278,7 +467,7 @@ const ProductManager = {
       clearTimeout(__footerHideTimer);
     } else if (!shouldShow && footerVisible) {
       var scrollY = window.scrollY || window.pageYOffset;
-      var distanceFromBottom = docH - (scrollY + viewH);
+      var distanceFromBottom = baseDocH - (scrollY + viewH);
       // If we're far enough from bottom, hide immediately; otherwise debounce hide
       var doHide = function () {
         footerVisible = false;
@@ -286,7 +475,7 @@ const ProductManager = {
         footer.classList.remove('footer-visible');
         footer.classList.add('footer-hidden');
         // clear padding after transition completes
-        var clearAfter = 300; // match CSS transition (~260ms) + buffer
+        var clearAfter = 850; // match CSS transition (800ms) + buffer
         setTimeout(function () {
           if (!footerVisible) {
             main.style.paddingBottom = '';
@@ -301,7 +490,7 @@ const ProductManager = {
         __footerHideTimer = setTimeout(function () {
           // re-evaluate before hiding
           var sY = window.scrollY || window.pageYOffset;
-          var dfb = docH - (sY + viewH);
+          var dfb = getBaseDocHeight() - (sY + viewH);
           if (dfb > footerHideThreshold) {
             doHide();
           }
@@ -407,7 +596,7 @@ const ProductManager = {
               scheduleFooterUpdate(80);
             });
             bodySizeObserver.observe(document.body, { childList: true, subtree: true, attributes: true });
-          } catch (e) {}
+          } catch (e) { }
         }
       } catch (e) {
         // ignore
@@ -484,3 +673,207 @@ const ProductManager = {
   }
 })();
 window.ProductManager = ProductManager;
+
+// =====================
+// ACTIVE NAV DETECTION
+// =====================
+(function () {
+  var path = window.location.pathname;
+  var links = document.querySelectorAll('.nav-links a[data-path]');
+  links.forEach(function (link) {
+    var linkPath = link.getAttribute('data-path');
+    // Exact match or starts-with for nested routes
+    if (path === linkPath || (linkPath !== '/' && path.startsWith(linkPath))) {
+      link.classList.add('active');
+    }
+  });
+})();
+
+// =====================
+// SUCCESS ANIMATION
+// =====================
+function playSuccessSound() {
+  const sound = document.getElementById('successSound');
+  if (sound) {
+    sound.currentTime = 0;
+    sound.play().catch(e => console.log('Sound play blocked:', e));
+  }
+}
+
+function playDeleteSound() {
+  const sound = document.getElementById('deleteSound');
+  if (sound) {
+    sound.currentTime = 0;
+    sound.play().catch(e => console.log('Sound play blocked:', e));
+  }
+}
+
+function showSuccessAnimation(emoji, callback) {
+  const overlay = document.getElementById('successOverlay');
+  const bagContainer = document.getElementById('bagContainer');
+  const successEmoji = document.getElementById('successEmoji');
+  const arcCircle = document.getElementById('arcCircle');
+  const arcCheck = document.getElementById('arcCheck');
+
+  if (!overlay || !bagContainer || !successEmoji || !arcCircle || !arcCheck) {
+    playSuccessSound();
+    if (callback) callback();
+    return;
+  }
+
+  // 1. Reset states
+  successEmoji.innerText = emoji || '📦';
+  arcCircle.classList.remove('active');
+  arcCheck.classList.remove('visible');
+  bagContainer.style.transform = 'translate(-50vw, -50vh) rotate(-180deg) scale(0.1)';
+  bagContainer.style.opacity = '0';
+  bagContainer.style.position = 'absolute';
+  bagContainer.style.top = '40%';
+  bagContainer.style.left = '50%';
+
+  // 2. Show overlay
+  overlay.style.display = 'flex';
+  setTimeout(() => overlay.style.opacity = '1', 10);
+
+  // 3. Animate bag and emoji in from "the whole page"
+  setTimeout(() => {
+    bagContainer.style.transition = 'all 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+    bagContainer.style.transform = 'translate(-50%, -50%) rotate(0deg) scale(1)';
+    bagContainer.style.opacity = '1';
+  }, 100);
+
+  // 4. Activate rotating arc circle
+  setTimeout(() => {
+    arcCircle.classList.add('active');
+    playSuccessSound();
+  }, 900);
+
+  // 5. Show checkmark
+  setTimeout(() => {
+    arcCheck.classList.add('visible');
+  }, 1600);
+
+  // 6. Dismiss
+  setTimeout(() => {
+    overlay.style.opacity = '0';
+    setTimeout(() => {
+      overlay.style.display = 'none';
+      if (callback) callback();
+    }, 500);
+  }, 3500);
+}
+
+// =====================
+// IMPORT ANIMATION
+// =====================
+function showImportAnimation(callback) {
+  const overlay = document.getElementById('importOverlay');
+  const stage = document.getElementById('itemsStage');
+  const arcCircle = document.getElementById('importArcCircle');
+  const arcCheck = document.getElementById('importArcCheck');
+
+  if (!overlay || !stage || !arcCircle || !arcCheck) {
+    playSuccessSound();
+    if (callback) callback();
+    return;
+  }
+
+  // Reset
+  stage.innerHTML = '';
+  arcCircle.classList.remove('active');
+  arcCheck.classList.remove('visible');
+
+  overlay.style.display = 'flex';
+  setTimeout(() => overlay.style.opacity = '1', 10);
+
+  // Create falling products
+  const emojis = ['📦', '📋', '🛒', '📦', '🎁', '📦'];
+  for (let i = 0; i < 20; i++) {
+    setTimeout(() => {
+      const item = document.createElement('div');
+      item.className = 'falling-item';
+      item.innerText = emojis[Math.floor(Math.random() * emojis.length)];
+      item.style.left = Math.random() * 100 + 'vw';
+      item.style.animationDelay = Math.random() * 0.5 + 's';
+      item.style.fontSize = (20 + Math.random() * 20) + 'px';
+      stage.appendChild(item);
+    }, i * 50);
+  }
+
+  // Activate arc and sound
+  setTimeout(() => {
+    arcCircle.classList.add('active');
+    playSuccessSound();
+  }, 1000);
+
+  // Show checkmark
+  setTimeout(() => {
+    arcCheck.classList.add('visible');
+  }, 2000);
+
+  // Dismiss
+  setTimeout(() => {
+    overlay.style.opacity = '0';
+    setTimeout(() => {
+      overlay.style.display = 'none';
+      if (callback) callback();
+    }, 500);
+  }, 4500);
+}
+
+// =====================
+// DELETE ANIMATION
+// =====================
+function showDeleteAnimation(callback) {
+  var overlay = document.getElementById('deleteOverlay');
+  if (!overlay) {
+    playDeleteSound();
+    if (callback) callback();
+    return;
+  }
+
+  overlay.classList.remove('active');
+  void overlay.offsetWidth;
+  overlay.classList.add('active');
+  playDeleteSound();
+
+  setTimeout(function () {
+    overlay.classList.remove('active');
+    if (callback) callback();
+  }, 1500);
+}
+
+// =====================
+// TOAST NOTIFICATIONS
+// =====================
+function showToast(message, type) {
+  type = type || 'info';
+  var container = document.getElementById('toast-container');
+  if (!container) return;
+
+  var icons = { success: '✓', error: '✕', info: 'ℹ' };
+  var toast = document.createElement('div');
+  toast.className = 'toast ' + type;
+  toast.innerHTML = '<span style="font-size:1.25rem;font-weight:700;">' + (icons[type] || '•') + '</span>' +
+    '<span>' + message + '</span>';
+  container.appendChild(toast);
+
+  // Auto-remove after 3.5s
+  setTimeout(function () {
+    toast.style.animation = 'slideOutRight 0.3s ease forwards';
+    setTimeout(function () {
+      if (toast.parentNode) toast.parentNode.removeChild(toast);
+    }, 300);
+  }, 3500);
+}
+
+// Add slideOutRight keyframe dynamically if not present
+(function () {
+  if (!document.getElementById('toast-keyframes')) {
+    var style = document.createElement('style');
+    style.id = 'toast-keyframes';
+    style.textContent = '@keyframes slideOutRight { from { transform: translateX(0); opacity: 1; } to { transform: translateX(420px); opacity: 0; } }';
+    document.head.appendChild(style);
+  }
+})();
+

@@ -1,0 +1,407 @@
+{% extends "base.html" %}
+
+{% block title %}Reports - BeshGebeya{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 data-en="📈 Advanced Reports" data-am="📈 የላቁ ሪፖርቶች">📈 Advanced Reports</h1>
+    <div class="header-actions">
+        <button onclick="exportToExcel()" class="glass-btn-blue" style="padding: 12px 32px;">
+            <span class="blue-emoji">📥</span> <span data-en="Download Excel" data-am="ኤክሴል አውርድ">Download Excel</span>
+        </button>
+    </div>
+</div>
+
+<div class="reports-container">
+    <div class="reports-grid">
+        <!-- 1. Category Pie Chart -->
+        <div class="crystal-card crystal-shimmer" style="position: relative;">
+            <div class="highlight-point" style="top: 20px; right: 20px;">
+                <div class="tooltip">Distribution of items across different product categories.</div>
+            </div>
+            <h3>📂 <span data-en="Category Distribution" data-am="የዘርፍ ስርጭት">Category Distribution</span></h3>
+            <p class="chart-desc"
+                data-en="Visual breakdown of your product catalog by primary categories. Helps identify which segments dominate your current stock levels."
+                data-am="የምርት ካታሎግዎን በዋና ዋና ምድቦች የእይታ ብልሽት። የትኞቹ ክፍሎች አሁን ባለው የክምችት መጠን ላይ እንደሚበልጡ ለመለየት ይረዳል።">
+                Visual breakdown of your product catalog by primary categories. Helps identify which segments dominate
+                your current stock levels.
+            </p>
+            <div class="chart-container">
+                <canvas id="categoryPieChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 2. Brand Pie Chart -->
+        <div class="crystal-card">
+            <h3>🏷️ <span data-en="Brand Market Share" data-am="የብራንድ የገበያ ድርሻ">Brand Market Share</span></h3>
+            <p class="chart-desc"
+                data-en="Inventory volume grouped by product brands. Useful for tracking brand performance and procurement focus."
+                data-am="የምርት ብርጭቶች በብራንድ ተከፋፍለው። የብራንድ አፈጻጸምን እና የግዢ ትኩረትን ለመከታተል ይጠቅማል።">
+                Inventory volume grouped by product brands. Useful for tracking brand performance and procurement focus.
+            </p>
+            <div class="chart-container">
+                <canvas id="brandPieChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 3. Inventory Status Doughnut -->
+        <div class="crystal-card crystal-shimmer">
+            <h3>📊 <span data-en="Stock Status Health" data-am="የክምችት ሁኔታ ጤና">Stock Status Health</span></h3>
+            <p class="chart-desc">Current inventory health: Available, Low Stock, or Expired.</p>
+            <div class="chart-container">
+                <canvas id="statusDoughnutChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 4. Expiry Timeline Graph -->
+        <div class="crystal-card">
+            <h3>📅 <span data-en="Expiry Timeline" data-am="የማብቂያ ጊዜ ሰሌዳ">Expiry Timeline</span></h3>
+            <p class="chart-desc">Projected stock expiration over the coming months.</p>
+            <div class="chart-container">
+                <canvas id="expiryTimelineChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 5. Stock Quantity Bar Chart -->
+        <div class="crystal-card crystal-shimmer">
+            <h3>📦 <span data-en="Top Products by Quantity" data-am="ከፍተኛ ብዛት ያላቸው ምርቶች">Top Products by Quantity</span>
+            </h3>
+            <p class="chart-desc">Ranking of products with the highest physical stock levels.</p>
+            <div class="chart-container">
+                <canvas id="stockQuantityChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 6. Top Suppliers Chart -->
+        <div class="crystal-card">
+            <h3>🚚 <span data-en="Top 5 Suppliers" data-am="ከፍተኛ 5 አቅራቢዎች">Top 5 Suppliers</span></h3>
+            <p class="chart-desc">Suppliers providing the most inventory volume.</p>
+            <div class="chart-container">
+                <canvas id="supplierChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 7. Product Creation Timeline -->
+        <div class="crystal-card crystal-shimmer">
+            <h3>✨ <span data-en="Product Addition Velocity" data-am="የምርት መጨመር ፍጥነት">Product Addition Velocity</span>
+            </h3>
+            <p class="chart-desc">How many new products are added to the system over time.</p>
+            <div class="chart-container">
+                <canvas id="creationTimelineChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 8. Batch Distribution Chart -->
+        <div class="crystal-card">
+            <h3>🔢 <span data-en="Batch Age Distribution" data-am="የባች ዕድሜ ስርጭት">Batch Age Distribution</span></h3>
+            <p class="chart-desc">Age breakdown of different inventory batches.</p>
+            <div class="chart-container">
+                <canvas id="batchDistributionChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .reports-container {
+        margin-top: 30px;
+    }
+
+    .reports-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+        gap: 30px;
+    }
+
+    .chart-desc {
+        color: var(--gray-400);
+        font-size: 0.9rem;
+        margin-bottom: 20px;
+    }
+
+    .chart-container {
+        height: 350px;
+        position: relative;
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+<script>
+    // Placeholder for Chart implementation logic
+    document.addEventListener('DOMContentLoaded', () => {
+        // We will build the Chart.js logic in the next step
+    });
+
+    function exportToExcel() {
+        const data = [
+            {% for item in inventory %}
+    {
+        "Product": "{{ item.product.name|default('')|escape }}",
+            "Category": "{{ item.product.category|default('Uncategorized')|escape }}",
+                "Brand": "{{ item.product.brand|default('Generic')|escape }}",
+                    "Quantity": { { item.quantity_on_hand or 0 } },
+        "Expiry": "{{ item.expiry_date.strftime('%Y-%m-%d') if item.expiry_date else 'N/A' }}",
+            "Status": "{{ item.status }}"
+    },
+    {% endfor %}
+        ];
+
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Reports");
+    XLSX.writeFile(workbook, "BeshGebeya_Inventory_Report.xlsx");
+    }
+
+    // Chart.js Global Config
+    Chart.defaults.color = '#94a3b8';
+    Chart.defaults.font.family = "'Inter', sans-serif";
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const products = {{ products_json | safe if products_json else '[]'
+    }};
+    const inventory = {{ inventory_json | safe if inventory_json else '[]' }};
+
+    // Helper to get color palette
+    const colors = [
+        '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
+        '#ec4899', '#06b6d4', '#f97316', '#14b8a6', '#6366f1'
+    ];
+
+    // 1. Category Distribution
+    const catMap = {};
+    products.forEach(p => {
+        const cat = p.category || 'Uncategorized';
+        catMap[cat] = (catMap[cat] || 0) + 1;
+    });
+    new Chart(document.getElementById('categoryPieChart'), {
+        type: 'pie',
+        data: {
+            labels: Object.keys(catMap),
+            datasets: [{
+                data: Object.values(catMap),
+                backgroundColor: colors,
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: {
+                animateRotate: true,
+                animateScale: true,
+                duration: 2500,
+                easing: 'easeOutQuart'
+            }
+        }
+    });
+
+    // 2. Brand Market Share
+    const brandMap = {};
+    products.forEach(p => {
+        const brand = p.brand || 'Generic';
+        brandMap[brand] = (brandMap[brand] || 0) + 1;
+    });
+    new Chart(document.getElementById('brandPieChart'), {
+        type: 'pie',
+        data: {
+            labels: Object.keys(brandMap),
+            datasets: [{
+                data: Object.values(brandMap),
+                backgroundColor: colors,
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: {
+                animateRotate: true,
+                animateScale: true,
+                duration: 2500,
+                easing: 'easeOutQuart'
+            }
+        }
+    });
+
+    // 3. Stock Status Health
+    const statusMap = { 'AVAILABLE': 0, 'LOW_STOCK': 0, 'EXPIRED': 0, 'DISCONTINUED': 0 };
+    inventory.forEach(item => {
+        statusMap[item.status] = (statusMap[item.status] || 0) + item.quantity_on_hand;
+    });
+    new Chart(document.getElementById('statusDoughnutChart'), {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(statusMap),
+            datasets: [{
+                data: Object.values(statusMap),
+                backgroundColor: ['#10b981', '#f59e0b', '#ef4444', '#64748b'],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '70%',
+            animation: {
+                animateRotate: true,
+                animateScale: true,
+                duration: 2500,
+                easing: 'easeOutQuart'
+            }
+        }
+    });
+
+    // 4. Expiry Timeline
+    const expiryMap = {};
+    inventory.forEach(item => {
+        if (item.expiry_date) {
+            const date = item.expiry_date.substring(0, 7); // YYYY-MM
+            expiryMap[date] = (expiryMap[date] || 0) + item.quantity_on_hand;
+        }
+    });
+    const sortedDates = Object.keys(expiryMap).sort();
+    new Chart(document.getElementById('expiryTimelineChart'), {
+        type: 'line',
+        data: {
+            labels: sortedDates,
+            datasets: [{
+                label: 'Expiring Items',
+                data: sortedDates.map(d => expiryMap[d]),
+                borderColor: '#3b82f6',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: { beginAtZero: true }
+            },
+            animation: {
+                duration: 2000,
+                easing: 'easeInOutQuad'
+            }
+        }
+    });
+
+    // 5. Stock Quantity Bar
+    const stockMap = {};
+    inventory.forEach(item => {
+        const name = item.product_id; // Mapping to product name would be better
+        // Simple: top 10 by quantity
+    });
+    // We'll use product names
+    const productStock = {};
+    inventory.forEach(item => {
+        const p = products.find(prod => prod.id === item.product_id);
+        if (p) {
+            productStock[p.name] = (productStock[p.name] || 0) + item.quantity_on_hand;
+        }
+    });
+    const topProducts = Object.entries(productStock)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10);
+    new Chart(document.getElementById('stockQuantityChart'), {
+        type: 'bar',
+        data: {
+            labels: topProducts.map(p => p[0]),
+            datasets: [{
+                label: 'Quantity',
+                data: topProducts.map(p => p[1]),
+                backgroundColor: '#3b82f6',
+                borderRadius: 8
+            }]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+    });
+
+    // 6. Top Suppliers
+    const supplierMap = {};
+    products.forEach(p => {
+        const s = p.supplier || 'Unknown';
+        supplierMap[s] = (supplierMap[s] || 0) + 1;
+    });
+    const topSuppliers = Object.entries(supplierMap)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5);
+    new Chart(document.getElementById('supplierChart'), {
+        type: 'bar',
+        data: {
+            labels: topSuppliers.map(s => s[0]),
+            datasets: [{
+                label: 'Products Supplied',
+                data: topSuppliers.map(s => s[1]),
+                backgroundColor: '#10b981',
+                borderRadius: 8
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y',
+            animation: {
+                duration: 2000,
+                easing: 'easeOutQuart'
+            }
+        }
+    });
+
+    // 7. Creation Timeline
+    const creationMap = {};
+    products.forEach(p => {
+        if (p.created_at) {
+            const date = p.created_at.substring(0, 10);
+            creationMap[date] = (creationMap[date] || 0) + 1;
+        }
+    });
+    const creationDates = Object.keys(creationMap).sort();
+    new Chart(document.getElementById('creationTimelineChart'), {
+        type: 'line',
+        data: {
+            labels: creationDates,
+            datasets: [{
+                label: 'New Products',
+                data: creationDates.map(d => creationMap[d]),
+                borderColor: '#8b5cf6',
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: {
+                duration: 2500,
+                easing: 'easeInOutQuad'
+            }
+        }
+    });
+
+    // 8. Batch Distribution
+    const batchMap = {};
+    inventory.forEach(item => {
+        const b = item.batch_number || 'Default';
+        batchMap[b] = (batchMap[b] || 0) + item.quantity_on_hand;
+    });
+    const topBatches = Object.entries(batchMap)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10);
+    new Chart(document.getElementById('batchDistributionChart'), {
+        type: 'bar',
+        data: {
+            labels: topBatches.map(b => b[0]),
+            datasets: [{
+                label: 'Batch Quantity',
+                data: topBatches.map(b => b[1]),
+                backgroundColor: '#f59e0b',
+                borderRadius: 8
+            }]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+    });
+    });
+    {% endblock %}

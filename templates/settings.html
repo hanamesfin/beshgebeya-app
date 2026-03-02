@@ -1,0 +1,481 @@
+{% extends 'base.html' %}
+
+{% block title %}Settings - BeshGebeya{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}">
+
+<div class="container">
+    <div class="page-header">
+        <h1 data-en="⚙️ Control Center" data-am="⚙️ መቆጣጠሪያ ማዕከል">⚙️ Control Center</h1>
+        <p class="subtitle" data-en="Enterprise Settings & Preferences" data-am="የድርጅት ቅንብሮች እና ምርጫዎች">Enterprise
+            Settings & Preferences</p>
+    </div>
+
+    <div class="settings-grid">
+        <!-- 1. Appearance & Theme -->
+        <div class="settings-card">
+            <div class="card-title">
+                <span class="icon-circle">🎨</span>
+                <div class="title-text">
+                    <h3 data-en="Appearance" data-am="ገጽታ">Appearance</h3>
+                </div>
+            </div>
+            <div class="card-content">
+                <div class="setting-item">
+                    <div class="setting-label">
+                        <span class="setting-title" data-en="Theme" data-am="ገጽታ">Theme</span>
+                        <span class="setting-desc" data-en="Light, dark, or system auto"
+                            data-am="የብርሃን፣ ጨለማ፣ ወይም አውቶማቲክ">Light, dark, or system auto</span>
+                    </div>
+                    <select id="themeSelect" class="settings-select">
+                        <option value="light" data-en="Light" data-am="ብርሃን">Light</option>
+                        <option value="dark" data-en="Dark" data-am="ጨለማ">Dark</option>
+                        <option value="auto" data-en="Auto" data-am="አውቶማቲክ">Auto</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <div class="setting-label">
+                        <span class="setting-title" data-en="Animation Intensity" data-am="የአኒሜሽን መጠን">Animation
+                            Intensity</span>
+                        <span class="setting-desc" data-en="Control crystal & glass effects"
+                            data-am="የብርጭቆ እና ክሪስታል መቆጣጠሪያ">Control crystal & glass effects</span>
+                    </div>
+                    <select id="animationSelect" class="settings-select">
+                        <option value="minimal" data-en="Minimal" data-am="አነስተኛ">Minimal</option>
+                        <option value="standard" data-en="Standard" data-am="መደበኛ">Standard</option>
+                        <option value="premium" data-en="Premium (Crystal)" data-am="ፕሪሚየም (ክሪስታል)" selected>Premium
+                            (Crystal)</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <div class="setting-label">
+                        <span class="setting-title" data-en="Dashboard Layout" data-am="የዳሽቦርድ አቀማመጥ">Dashboard
+                            Layout</span>
+                    </div>
+                    <select id="layoutSelect" class="settings-select">
+                        <option value="compact" data-en="Compact" data-am="የታመቀ">Compact</option>
+                        <option value="spacious" data-en="Spacious" data-am="ሰፊ" selected>Spacious</option>
+                        <option value="analytics" data-en="Analytics-Focused" data-am="አናሊቲክስ-ትኩረት">Analytics-Focused
+                        </option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. Localization base -->
+        <div class="settings-card">
+            <div class="card-title">
+                <span class="icon-circle">🌍</span>
+                <div class="title-text">
+                    <h3 data-en="Localization" data-am="ቋንቋ እና አካባቢ">Localization</h3>
+                </div>
+            </div>
+            <div class="card-content">
+                <div class="setting-item">
+                    <div class="setting-label">
+                        <span class="setting-title" data-en="Language" data-am="ቋንቋ">Language</span>
+                    </div>
+                    <select id="languageSelect" class="settings-select">
+                        <option value="en">English</option>
+                        <option value="am">Amharic (አማርኛ)</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <div class="setting-label">
+                        <span class="setting-title" data-en="Currency" data-am="የገንዘብ አይነት">Currency</span>
+                        <span class="setting-desc" data-en="Default reporting currency"
+                            data-am="የሪፖርት ማድረጊያ ገንዘብ አይነት">Default reporting currency</span>
+                    </div>
+                    <select id="currencySelect" class="settings-select">
+                        <option value="etb">ETB (Br)</option>
+                        <option value="usd">USD ($)</option>
+                        <option value="eur">EUR (€)</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <div class="setting-label">
+                        <span class="setting-title" data-en="Timezone" data-am="የሰዓት ሰቅ">Timezone</span>
+                    </div>
+                    <select id="timezoneSelect" class="settings-select">
+                        <option value="eat">East Africa Time (EAT)</option>
+                        <option value="utc">UTC</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. Notifications base -->
+        <div class="settings-card">
+            <div class="card-title">
+                <span class="icon-circle">🔔</span>
+                <div class="title-text">
+                    <h3 data-en="Notifications" data-am="ማሳወቂያዎች">Notifications</h3>
+                </div>
+            </div>
+            <div class="card-content">
+                <div class="setting-item">
+                    <div class="setting-label">
+                        <span class="setting-title" data-en="Email Alerts" data-am="የኢሜይል ማንቂያዎች">Email Alerts</span>
+                        <span class="setting-desc" data-en="Receive critical system emails"
+                            data-am="አስፈላጊ የሲስተም ኢሜይሎች ይቀበሉ">Receive critical system emails</span>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="emailNotif" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="setting-item">
+                    <div class="setting-label">
+                        <span class="setting-title" data-en="Low Stock Alerts" data-am="አነስተኛ እቃ ማንቂያዎች">Low Stock
+                            Alerts</span>
+                        <span class="setting-desc" data-en="Push alerts for zero-stock" data-am="እቃ ሲያልቅ ማሳወቂያዎች">Push
+                            alerts for zero-stock</span>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="stockNotif" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="setting-item">
+                    <div class="setting-label">
+                        <span class="setting-title" data-en="Weekly Sales Summaries" data-am="ሳምንታዊ የሽያጭ ማጠቃለያዎች">Weekly
+                            Sales Summaries</span>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="salesNotif">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. Security & Access base -->
+        <div class="settings-card">
+            <div class="card-title">
+                <span class="icon-circle">🛡️</span>
+                <div class="title-text">
+                    <h3 data-en="Security" data-am="ደህንነት">Security</h3>
+                </div>
+            </div>
+            <div class="card-content">
+                <div class="setting-item">
+                    <div class="setting-label">
+                        <span class="setting-title" data-en="Two-Factor Auth (2FA)"
+                            data-am="ባለሁለት ማረጋገጫ (2FA)">Two-Factor
+                            Auth (2FA)</span>
+                        <span class="setting-desc" data-en="Require code on login" data-am="በመግቢያ ጊዜ ኮድ ይጠይቁ">Require
+                            code
+                            on login</span>
+                    </div>
+                    <button class="settings-btn" data-en="Enable" data-am="አብራ">Enable</button>
+                </div>
+                <div class="setting-item">
+                    <div class="setting-label">
+                        <span class="setting-title" data-en="Auto Logout Timer" data-am="አውቶማቲክ መውጫ ሰዓት">Auto Logout
+                            Timer</span>
+                    </div>
+                    <select id="logoutSelect" class="settings-select">
+                        <option value="15" data-en="15 Minutes" data-am="15 ደቂቃዎች">15 Minutes</option>
+                        <option value="30" data-en="30 Minutes" data-am="30 ደቂቃዎች" selected>30 Minutes</option>
+                        <option value="60" data-en="1 Hour" data-am="1 ሰዓት">1 Hour</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <div class="setting-label">
+                        <span class="setting-title" data-en="Active Sessions" data-am="ንቁ ክፍለ ጊዜዎች">Active
+                            Sessions</span>
+                        <span class="setting-desc" data-en="Manage signed-in devices"
+                            data-am="የገቡበትን መሳሪያዎች ያስተዳድሩ">Manage
+                            signed-in devices</span>
+                    </div>
+                    <button class="settings-btn danger" data-en="Revoke All" data-am="ሁሉንም አውጣ">Revoke All</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 5. Data & Export base -->
+        <div class="settings-card">
+            <div class="card-title">
+                <span class="icon-circle">📁</span>
+                <div class="title-text">
+                    <h3 data-en="Data Export" data-am="ዳታ ማውጣት">Data Export</h3>
+                </div>
+            </div>
+            <div class="card-content">
+                <div class="setting-item">
+                    <div class="setting-label">
+                        <span class="setting-title" data-en="Product Catalog" data-am="የምርት ማውጫ">Product Catalog</span>
+                        <span class="setting-desc" data-en="Export to Excel (CSV)" data-am="ወደ ኤክሴል አውጣ (CSV)">Export to
+                            Excel (CSV)</span>
+                    </div>
+                    <button class="settings-btn" data-en="Download" data-am="አውርድ">Download</button>
+                </div>
+                <div class="setting-item">
+                    <div class="setting-label">
+                        <span class="setting-title" data-en="Sales Ledger" data-am="የሽያጭ መዝገብ">Sales Ledger</span>
+                    </div>
+                    <button class="settings-btn" data-en="Export PDF" data-am="ወደ ፒዲኤፍ አውጣ">Export PDF</button>
+                </div>
+                <div class="setting-item">
+                    <div class="setting-label">
+                        <span class="setting-title" data-en="Database Backup" data-am="የዳታቤዝ ባክአፕ">Database
+                            Backup</span>
+                        <span class="setting-desc" data-en="Perform cold storage backup"
+                            data-am="ኮልድ ስቶሬጅ ባክአፕ አከናውን">Perform cold storage backup</span>
+                    </div>
+                    <button class="settings-btn primary" data-en="Backup Now" data-am="አሁን ባክአፕ አድርግ">Backup
+                        Now</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 6. Display & Analysis base -->
+        <div class="settings-card">
+            <div class="card-title">
+                <span class="icon-circle">📊</span>
+                <div class="title-text">
+                    <h3 data-en="Display Preferences" data-am="የማሳያ ምርጫዎች">Display Preferences</h3>
+                </div>
+            </div>
+            <div class="card-content">
+                <div class="setting-item">
+                    <div class="setting-label">
+                        <span class="setting-title" data-en="Chart Style" data-am="የቻርት ስታይል">Chart Style</span>
+                    </div>
+                    <select id="chartSelect" class="settings-select">
+                        <option value="glass" data-en="Premium Glass" data-am="ፕሪሚየም ብርጭቆ" selected>Premium Glass
+                        </option>
+                        <option value="minimal" data-en="Minimal Flat" data-am="አነስተኛ ፍላት">Minimal Flat</option>
+                        <option value="detailed" data-en="High Density Data" data-am="ከፍተኛ ዳታ መረጃ">High Density Data
+                        </option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <div class="setting-label">
+                        <span class="setting-title" data-en="Default Landing Page" data-am="የመጀመሪያ ማሳረፊያ ገጽ">Default
+                            Landing
+                            Page</span>
+                    </div>
+                    <select id="landingSelect" class="settings-select">
+                        <option value="dashboard" data-en="Dashboard" data-am="ዳሽቦርድ" selected>Dashboard</option>
+                        <option value="products" data-en="Products" data-am="ምርቶች">Products</option>
+                        <option value="inventory" data-en="Inventory" data-am="እቃዎች">Inventory</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <div class="setting-label">
+                        <span class="setting-title" data-en="Account Profile" data-am="የመለያ ፕሮፋይል">Account
+                            Profile</span>
+                        <span class="setting-desc" id="displayName" style="font-weight: 600;">{{ user.name or
+                            user.username }}</span>
+                        <span class="setting-desc" id="displayUsername" style="font-size: 0.75rem; opacity: 0.7;">@{{
+                            user.username }}</span>
+                        <span class="setting-desc" id="displayEmail" style="font-size: 0.75rem; opacity: 0.7;">{{
+                            user.email or 'No email' }}</span>
+                    </div>
+                    <button class="settings-btn" id="updateProfileBtn" data-en="Update Info" data-am="መረጃ አዘምን">Update
+                        Info</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Profile Update Modal -->
+<div id="profileModal" class="modal-overlay"
+    style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); z-index: 2000; align-items: center; justify-content: center;">
+    <div class="settings-card" style="width: 400px; transform: none; opacity: 1; animation: none;">
+        <h3 data-en="Update Profile" data-am="ፕሮፋይል አዘምን">Update Profile</h3>
+        <div class="setting-item" style="flex-direction: column; align-items: flex-start; gap: 8px;">
+            <label data-en="Name" data-am="ስም">Name</label>
+            <input type="text" id="editName" class="settings-input" style="width: 100%;" value="{{ user.name or '' }}">
+        </div>
+        <div class="setting-item" style="flex-direction: column; align-items: flex-start; gap: 8px;">
+            <label data-en="Email" data-am="ኢሜይል">Email</label>
+            <input type="email" id="editEmail" class="settings-input" style="width: 100%;"
+                value="{{ user.email or '' }}">
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px;">
+            <button class="settings-btn" id="cancelProfile" data-en="Cancel" data-am="ሰርዝ">Cancel</button>
+            <button class="settings-btn primary" id="saveProfile" data-en="Save Changes" data-am="ለውጦችን አስቀምጥ">Save
+                Changes</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+
+        /* --- Theme Core Logic --- */
+        const themeSelect = document.getElementById("themeSelect");
+
+        // Set initial select value based on what's in localStorage
+        const savedThemeSetting = localStorage.getItem('theme') || 'auto';
+        themeSelect.value = savedThemeSetting;
+
+        themeSelect.addEventListener('change', () => {
+            const theme = themeSelect.value;
+            localStorage.setItem('theme', theme);
+            applyTheme(theme);
+        });
+
+        function applyTheme(theme) {
+            if (theme === 'dark' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        }
+
+        /* --- Language Translation Core Logic --- */
+        const languageSelect = document.getElementById("languageSelect");
+        const savedLang = localStorage.getItem('lang') || 'en';
+        languageSelect.value = savedLang;
+
+        // Apply translations instantly
+        function applyTranslations(lang) {
+            document.documentElement.setAttribute('lang', lang);
+            document.querySelectorAll('[data-en]').forEach(el => {
+                const translation = el.getAttribute(`data-${lang}`);
+                if (translation) {
+                    // Determine if we need to replace innerText or placeholder
+                    if (el.tagName === 'INPUT' && el.hasAttribute('placeholder')) {
+                        el.placeholder = translation;
+                    } else {
+                        el.innerText = translation;
+                    }
+                }
+            });
+        }
+
+        applyTranslations(savedLang); // Call on load
+
+        languageSelect.addEventListener("change", () => {
+            const lang = languageSelect.value;
+            localStorage.setItem("lang", lang);
+            applyTranslations(lang);
+        });
+
+        /* --- Simulation of Persistence for Toggles/Selectors --- */
+        const persistSettings = ['themeSelect', 'animationSelect', 'layoutSelect', 'currencySelect', 'timezoneSelect', 'logoutSelect'];
+        persistSettings.forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const key = (id === 'themeSelect') ? 'theme' : id;
+            const savedVal = localStorage.getItem(key);
+            if (savedVal) el.value = savedVal;
+            el.addEventListener('change', () => {
+                const key = (id === 'themeSelect') ? 'theme' : id;
+                localStorage.setItem(key, el.value);
+
+                // Immediate theme application
+                if (id === 'themeSelect') {
+                    if (el.value === 'dark' || (el.value === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                        document.documentElement.classList.add('dark');
+                    } else {
+                        document.documentElement.classList.remove('dark');
+                    }
+                }
+            });
+        });
+
+        /* --- Database Persisted Preferences --- */
+        const chartSelect = document.getElementById('chartSelect');
+        const landingSelect = document.getElementById('landingSelect');
+
+        // Initialize from server-rendered data (set via Jinja)
+        chartSelect.value = "{{ user.chart_style or 'glass' }}";
+        landingSelect.value = "{{ user.landing_page or 'dashboard' }}";
+
+        async function savePreference(key, value) {
+            console.log(`Saving preference: ${key} = ${value}`);
+            try {
+                const response = await fetch('/api/settings/preferences', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ [key]: value })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    console.log(`Successfully saved ${key}`);
+                    // Visual feedback
+                    const select = document.getElementById(key === 'chart_style' ? 'chartSelect' : 'landingSelect');
+                    select.style.borderColor = '#47d147';
+                    select.style.boxShadow = '0 0 10px rgba(71, 209, 71, 0.3)';
+                    setTimeout(() => {
+                        select.style.borderColor = '';
+                        select.style.boxShadow = '';
+                    }, 1000);
+                } else {
+                    console.error('Error saving preference:', data.error);
+                    alert('Error saving preference: ' + data.error);
+                }
+            } catch (e) {
+                console.error('Failed to save preference', e);
+                alert('Connection error while saving preferences.');
+            }
+        }
+
+        chartSelect.addEventListener('change', () => savePreference('chart_style', chartSelect.value));
+        landingSelect.addEventListener('change', () => savePreference('landing_page', landingSelect.value));
+
+        /* --- Profile Update Logic --- */
+        const profileModal = document.getElementById('profileModal');
+        const updateProfileBtn = document.getElementById('updateProfileBtn');
+        const cancelProfile = document.getElementById('cancelProfile');
+        const saveProfile = document.getElementById('saveProfile');
+
+        updateProfileBtn.addEventListener('click', () => {
+            profileModal.style.display = 'flex';
+        });
+
+        cancelProfile.addEventListener('click', () => {
+            profileModal.style.display = 'none';
+        });
+
+        saveProfile.addEventListener('click', async () => {
+            const name = document.getElementById('editName').value;
+            const email = document.getElementById('editEmail').value;
+
+            console.log(`Updating profile: Name=${name}, Email=${email}`);
+
+            try {
+                const response = await fetch('/api/settings/profile', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, email })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    console.log('Profile updated successfully');
+                    document.getElementById('displayEmail').innerText = email;
+                    profileModal.style.display = 'none';
+                    // Show a quick success feedback
+                    saveProfile.innerText = "Saved!";
+                    setTimeout(() => saveProfile.innerText = "Save Changes", 2000);
+                    alert("Profile updated successfully!");
+                } else {
+                    console.error('Profile update error:', data.error);
+                    alert('Error: ' + data.error);
+                }
+            } catch (e) {
+                console.error('Profile update connection error', e);
+                alert('Connection error while updating profile.');
+            }
+        });
+
+        const persistToggles = ['emailNotif', 'stockNotif', 'salesNotif'];
+        persistToggles.forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const savedVal = localStorage.getItem(id);
+            if (savedVal !== null) el.checked = savedVal === 'true';
+            el.addEventListener('change', () => {
+                localStorage.setItem(id, el.checked);
+            });
+        });
+    });
+</script>
+{% endblock %}

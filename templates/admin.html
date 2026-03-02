@@ -1,29 +1,53 @@
 {% extends "base.html" %}
 
-{% block title %}Admin Panel - BeshGebeya{% endblock %}
+{% block title %}Admin Panel - BeshGebeya
+<script>
+    async function resetDatabase() {
+        if (!confirm("⚠️ CAUTION: This will PERMANENTLY DELETE all products and inventory. This cannot be undone.\n\nAre you absolutely sure?")) return;
+        const verification = prompt("Type 'DELETE ALL' to confirm:");
+        if (verification !== 'DELETE ALL') { alert("Verification failed. Nothing was deleted."); return; }
+        try {
+            const r = await fetch('/api/admin/reset-database', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+            const result = await r.json();
+            if (result.success) { showToast('Database cleared.', 'success'); setTimeout(() => window.location.reload(), 1500); }
+            else { showToast('Error: ' + result.error, 'error'); }
+        } catch { showToast('A network error occurred.', 'error'); }
+    }
+</script>
+{% endblock %}
 
 {% block content %}
 <div class="page-header">
     <h1>👨‍💼 Admin Dashboard</h1>
+    <div class="header-actions">
+        <a href="#user-management" class="glass-btn-blue header-link-btn">
+            <span class="blue-emoji emoji-large">👥</span> <span data-en="User Management" data-am="የተጠቃሚ አስተዳደር">User
+                Management</span>
+        </a>
+        <button onclick="resetDatabase()" class="btn-text-action btn-text-danger ml-2">
+            <span class="action-icon">🗑️</span>
+            <span data-en="Delete All Data" data-am="ሁሉንም ዳታ አጥፋ">Delete All Data</span>
+        </button>
+    </div>
 </div>
 
 <div class="metrics-grid">
-    <div class="metric-card">
+    <div class="metric-card stagger-reveal">
         <div class="metric-icon">📦</div>
         <div class="metric-content">
             <h3>Total Products</h3>
             <p class="metric-value">{{ total_products }}</p>
         </div>
     </div>
-    <div class="metric-card">
+    <div class="metric-card stagger-reveal">
         <div class="metric-icon">📊</div>
         <div class="metric-content">
             <h3>Total Inventory</h3>
             <p class="metric-value">{{ total_inventory }}</p>
         </div>
     </div>
-  
-    <div class="metric-card">
+
+    <div class="metric-card stagger-reveal">
         <div class="metric-icon">👥</div>
         <div class="metric-content">
             <h3>Total Users</h3>
@@ -32,63 +56,55 @@
     </div>
 </div>
 
-<div class="section">
-    <h2>🚨 Critical Alerts</h2>
+<div class="section stagger-reveal">
+    <div class="section-header">
+        <h2 data-en="🚨 Critical Alerts" data-am="🚨 ወሳኝ ማንቂያዎች">🚨 Critical Alerts</h2>
+        <div class="header-line"></div>
+    </div>
     {% if critical_alerts %}
-        <div class="alerts-list">
-            {% for alert in critical_alerts %}
-                <div class="alert-item alert-{{ alert.type|lower }}">
-                    <span class="alert-icon">
-                        {% if alert.type == 'LOW_STOCK' %}⚠️
-                        {% elif alert.type == 'NEAR_EXPIRY' %}⏰
-                        {% else %}🚫{% endif %}
-                    </span>
-                    <div class="alert-content">
-                        <p><strong>{{ alert.message }}</strong></p>
-                        {% if alert.quantity %}
-                            <small>Quantity: {{ alert.quantity }} units</small>
-                        {% endif %}
-                        {% if alert.days_until_expiry is not none %}
-                            <small> • Days until expiry: {{ alert.days_until_expiry }}</small>
-                        {% endif %}
-                        <small> • {{ alert.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
-                    </div>
-                </div>
-            {% endfor %}
+    <div class="alerts-list">
+        {% for alert in critical_alerts %}
+        <div class="alert-item alert-{{ alert.type|lower }}">
+            <span class="alert-icon">
+                {% if alert.type == 'LOW_STOCK' %}⚠️
+                {% elif alert.type == 'NEAR_EXPIRY' %}⏰
+                {% else %}🚫{% endif %}
+            </span>
+            <div class="alert-content">
+                <p><strong>{{ alert.message }}</strong></p>
+                {% if alert.quantity %}
+                <small>Quantity: {{ alert.quantity }} units</small>
+                {% endif %}
+                {% if alert.days_until_expiry is not none %}
+                <small> • Days until expiry: {{ alert.days_until_expiry }}</small>
+                {% endif %}
+                <small> • {{ alert.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+            </div>
         </div>
+        {% endfor %}
+    </div>
     {% else %}
-        <p class="empty-state">No active alerts</p>
+    <p class="empty-state">No active alerts</p>
     {% endif %}
 </div>
 
-<div class="section">
-    <h2>👥 User Management</h2>
+<div class="section stagger-reveal" id="user-management">
+    <div class="section-header">
+        <h2 data-en="👥 User Management" data-am="👥 የተጠቃሚ አስተዳደር">👥 User Management</h2>
+        <div class="header-line"></div>
+    </div>
     <table class="data-table">
         <thead>
             <tr>
-                <th>Username</th>
-                <th>Email</th>
-                <th>Name</th>
-                <th>Role</th>
-                <th>Created</th>
+                <th data-en="Username" data-am="የመለያ ስም">Username</th>
+                <th data-en="Email" data-am="ኢሜይል">Email</th>
+                <th data-en="Name" data-am="ስም">Name</th>
+                <th data-en="Role" data-am="ሚና">Role</th>
+                <th data-en="Actions" data-am="እርምጃዎች">Actions</th>
             </tr>
         </thead>
-        <tbody>
-            {% for user in users %}
-            <tr>
-                <td><strong>{{ user.username }}</strong></td>
-                <td>{{ user.email }}</td>
-                <td>{{ user.name }}</td>
-                <td>
-                    {% if user.is_admin %}
-                        <span class="badge badge-admin">Admin</span>
-                    {% else %}
-                        <span class="badge badge-user">User</span>
-                    {% endif %}
-                </td>
-                <td>{{ user.created_at.strftime('%Y-%m-%d') }}</td>
-            </tr>
-            {% endfor %}
+        <tbody id="user-table-body">
+            {% include 'partials/user_table_rows.html' %}
         </tbody>
     </table>
 </div>

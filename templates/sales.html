@@ -3,164 +3,207 @@
 {% block title %}Sales - BeshGebeya{% endblock %}
 
 {% block content %}
-<div class="page-header">
-    <h1>💳 Sales</h1>
-    <button onclick="toggleForm()" class="btn-primary">+ New Sale</button>
-</div>
+<div x-data="salesApp()" class="sales-page-container">
+    <div class="page-header">
+        <h1 data-en="💳 Sales" data-am="💳 ሽያጭ">💳 Sales</h1>
+        <button @click="toggleForm()" class="btn-primary" :data-en="showForm ? 'Cancel Sale' : '+ New Sale'"
+            :data-am="showForm ? 'ሽያጭ ሰርዝ' : '+ አዲስ ሽያጭ'">
+            <span x-text="showForm ? 'Cancel Sale' : '+ New Sale'">+ New Sale</span>
+        </button>
+    </div>
 
-<div id="sale-form" class="form-container" style="display:none;">
-    <h2>Create New Sale</h2>
-    <div id="sale-items">
-        <div class="sale-item">
-            <select class="product-select" onchange="updateTotal()">
-                <option value="">Select product</option>
-                {% for product in products %}
-                <option value="{{ product.id }}" data-price="{{ product.unit_price }}">
-                    {{ product.name }} - {{ "{:,.2f}".format(product.unit_price) }} ETB
-                </option>
-                {% endfor %}
-            </select>
-            <input type="number" class="quantity-input" placeholder="Quantity" min="1" onchange="updateTotal()">
-            <span class="item-total">0.00 ETB</span>
-            <button type="button" onclick="removeItem(this)" class="btn-remove">✕</button>
-        </div>
-    </div>
-    <button type="button" onclick="addItem()" class="btn-secondary">+ Add Item</button>
-    
-    <div class="form-group" style="margin-top: 20px;">
-        <label>Payment Type</label>
-        <div class="radio-group">
-            <label><input type="radio" name="payment" value="CASH" checked> Cash</label>
-            <label><input type="radio" name="payment" value="CARD"> Card</label>
-            <label><input type="radio" name="payment" value="MOBILE"> Mobile Payment</label>
-        </div>
-    </div>
-    
-    <div class="sale-total">
-        <h3>Total: <span id="total-amount">0.00</span> ETB</h3>
-    </div>
-    
-    <div class="form-actions">
-        <button type="button" onclick="submitSale()" class="btn-primary">Complete Sale</button>
-        <button type="button" onclick="toggleForm()" class="btn-secondary">Cancel</button>
-    </div>
-</div>
+    <!-- Sale Form Container with Alpine & GSAP -->
+    <div id="sale-form-reveal" class="reveal-container" x-show="showForm" x-transition:enter="gsap-slide-down"
+        x-transition:leave="gsap-slide-up" style="display:none; margin-bottom: var(--space-lg);">
 
-<div class="section">
-    <h2>Sales History</h2>
-    {% if sales %}
-        {% for sale in sales %}
-        <div class="sale-card">
-            <div class="sale-header">
-                <div>
-                    <h3>Sale #{{ sale.id }}</h3>
-                    <small>{{ sale.sale_date.strftime('%Y-%m-%d %H:%M') }}</small>
-                    <small> • {{ sale.user.name }} • {{ sale.branch.name }}</small>
-                </div>
-                <div class="sale-amount">
-                    <h2>{{ "{:,.2f}".format(sale.total_amount) }} ETB</h2>
-                    <span class="badge">{{ sale.payment_type }}</span>
-                </div>
-            </div>
-            <div class="sale-items-list">
-                <strong>Items:</strong>
-                {% for item in sale.items %}
-                    <div class="sale-item-row">
-                        {{ item.product.name }} × {{ item.quantity }} = {{ "{:,.2f}".format(item.price) }} ETB
+        <div class="crystal-card crystal-shimmer">
+            <h2 data-en="Create New Sale" data-am="አዲስ ሽያጭ ፍጠር">Create New Sale</h2>
+
+            <div id="sale-items" class="sale-items-stack">
+                <template x-for="(item, index) in items" :key="index">
+                    <div class="sale-item stagger-reveal-in" style="margin-bottom: var(--space-sm);">
+                        <div class="sale-item-grid">
+                            <select class="product-select" x-model="item.product_id" @change="updateItemPrice(item)"
+                                title="Select Product">
+                                <option value="" data-en="Select product" data-am="ምርት ይምረጡ">Select product</option>
+                                {% for product in products %}
+                                <option value="{{ product.id }}" data-price="{{ product.unit_price }}"
+                                    data-en="{{ product.name }} - {{ '{:,.2f}'.format(product.unit_price) }} ETB"
+                                    data-am="{{ product.local_name or product.name }} - {{ '{:,.2f}'.format(product.unit_price) }} ብር">
+                                    {{ product.name }} - {{ "{:,.2f}".format(product.unit_price) }} ETB
+                                </option>
+                                {% endfor %}
+                            </select>
+
+                            <input type="number" class="quantity-input" x-model.number="item.quantity"
+                                placeholder="Quantity" min="1" data-en="Quantity" data-am="ብዛት">
+
+                            <div class="item-total-display">
+                                <span class="item-total-value"
+                                    x-text="formatCurrency(item.quantity * item.price)">0.00</span>
+                                <span class="currency-label">ETB</span>
+                            </div>
+
+                            <button type="button" @click="removeItem(index)" class="btn-remove-circle"
+                                title="Remove Item">✕</button>
+                        </div>
                     </div>
-                {% endfor %}
+                </template>
+            </div>
+
+            <div class="form-row-actions">
+                <button type="button" @click="addItem()" class="btn-secondary-glass" data-en="+ Add Item"
+                    data-am="+ ተጨማሪ እቃ">
+                    + Add Item
+                </button>
+            </div>
+
+            <div class="payment-selection-section">
+                <label class="form-label" data-en="Payment Type" data-am="የክፍያ አይነት">Payment Type</label>
+                <div class="radio-group-premium">
+                    <label class="radio-pill">
+                        <input type="radio" x-model="paymentType" value="CASH">
+                        <span data-en="Cash" data-am="ጥሬ ገንዘብ">Cash</span>
+                    </label>
+                    <label class="radio-pill">
+                        <input type="radio" x-model="paymentType" value="CARD">
+                        <span data-en="Card" data-am="ካርድ">Card</span>
+                    </label>
+                    <label class="radio-pill">
+                        <input type="radio" x-model="paymentType" value="MOBILE">
+                        <span data-en="Mobile" data-am="ሞባይል">Mobile</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="sale-summary-footer">
+                <div class="total-badge-large">
+                    <span class="total-label" data-en="Total:" data-am="ድምር:">Total:</span>
+                    <span class="total-amount" x-text="formatCurrency(calculateTotal())">0.00</span>
+                    <span class="total-currency">ETB</span>
+                </div>
+
+                <div class="form-actions-row">
+                    <button type="button" @click="submitSale()" class="btn-primary-large"
+                        :disabled="items.length === 0 || !items[0].product_id" data-en="Complete Sale"
+                        data-am="ሽያጭ ጨርስ">
+                        Complete Sale
+                    </button>
+                </div>
             </div>
         </div>
-        {% endfor %}
-    {% else %}
-        <p class="empty-state">No sales recorded yet</p>
-    {% endif %}
+    </div>
+
+    <div class="section">
+        <div class="section-header">
+            <h2 data-en="Sales History" data-am="የሽያጭ ታሪክ">Sales History</h2>
+            <div class="header-line"></div>
+        </div>
+
+        <div id="sales-history-container" class="sales-history-grid" hx-get="{{ url_for('sales') }}"
+            hx-trigger="refreshSales from:body">
+            {% include 'partials/sales_history.html' %}
+        </div>
+    </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-function toggleForm() {
-    var form = document.getElementById('sale-form');
-    form.style.display = form.style.display === 'none' ? 'block' : 'none';
-}
+    function salesApp() {
+        return {
+            showForm: false,
+            paymentType: 'CASH',
+            items: [
+                { product_id: '', quantity: 1, price: 0 }
+            ],
 
-function addItem() {
-    var container = document.getElementById('sale-items');
-    var newItem = container.children[0].cloneNode(true);
-    newItem.querySelector('.product-select').value = '';
-    newItem.querySelector('.quantity-input').value = '';
-    newItem.querySelector('.item-total').textContent = '0.00 ETB';
-    container.appendChild(newItem);
-}
+            toggleForm() {
+                this.showForm = !this.showForm;
+                if (this.showForm && this.items.length === 0) {
+                    this.addItem();
+                }
+            },
 
-function removeItem(btn) {
-    if (document.getElementById('sale-items').children.length > 1) {
-        btn.parentElement.remove();
-        updateTotal();
+            addItem() {
+                this.items.push({ product_id: '', quantity: 1, price: 0 });
+                this.$nextTick(() => {
+                    gsap.from(".sale-item:last-child", {
+                        x: -20,
+                        opacity: 0,
+                        duration: 0.4,
+                        ease: "expo.out"
+                    });
+                });
+            },
+
+            removeItem(index) {
+                if (this.items.length > 1) {
+                    this.items.splice(index, 1);
+                } else {
+                    this.items = [{ product_id: '', quantity: 1, price: 0 }];
+                }
+            },
+
+            updateItemPrice(item) {
+                const select = event.target;
+                const option = select.options[select.selectedIndex];
+                if (option.dataset.price) {
+                    item.price = parseFloat(option.dataset.price);
+                } else {
+                    item.price = 0;
+                }
+            },
+
+            calculateTotal() {
+                return this.items.reduce((sum, item) => sum + (item.quantity * item.price), 0);
+            },
+
+            formatCurrency(value) {
+                return new Intl.NumberFormat('en-US', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                }).format(value);
+            },
+
+            async submitSale() {
+                const validItems = this.items.filter(i => i.product_id && i.quantity > 0);
+                if (validItems.length === 0) {
+                    showToast('Please add at least one item', 'error');
+                    return;
+                }
+
+                try {
+                    const response = await fetch('{{ url_for("sales") }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            items: validItems,
+                            payment_type: this.paymentType
+                        })
+                    });
+
+                    const data = await response.json();
+                    if (data.success) {
+                        // Success! Trigger animation and reset
+                        showSuccessAnimation('📦', () => {
+                            this.showForm = false;
+                            this.items = [{ product_id: '', quantity: 1, price: 0 }];
+                            // Trigger HTMX refresh of the history
+                            document.body.dispatchEvent(new CustomEvent('refreshSales'));
+                            showToast('Sale completed successfully!', 'success');
+                        });
+                    } else {
+                        showToast(data.error || 'Sale failed', 'error');
+                    }
+                } catch (error) {
+                    showToast('Network error occurred', 'error');
+                    console.error(error);
+                }
+            }
+        }
     }
-}
-
-function updateTotal() {
-    var total = 0;
-    var items = document.querySelectorAll('.sale-item');
-    items.forEach(function(item) {
-        var select = item.querySelector('.product-select');
-        var quantity = item.querySelector('.quantity-input').value;
-        if (select.value && quantity) {
-            var price = parseFloat(select.options[select.selectedIndex].dataset.price);
-            var itemTotal = price * parseInt(quantity);
-            item.querySelector('.item-total').textContent = itemTotal.toFixed(2) + ' ETB';
-            total += itemTotal;
-        }
-    });
-    document.getElementById('total-amount').textContent = total.toFixed(2);
-}
-
-function submitSale() {
-    var items = [];
-    var saleItems = document.querySelectorAll('.sale-item');
-    
-    saleItems.forEach(function(item) {
-        var productId = item.querySelector('.product-select').value;
-        var quantity = item.querySelector('.quantity-input').value;
-        if (productId && quantity) {
-            items.push({
-                product_id: parseInt(productId),
-                quantity: parseInt(quantity)
-            });
-        }
-    });
-    
-    if (items.length === 0) {
-        alert('Please add at least one item');
-        return;
-    }
-    
-    var paymentType = document.querySelector('input[name="payment"]:checked').value;
-    
-    fetch('{{ url_for("sales") }}', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            items: items,
-            payment_type: paymentType
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            alert('Sale completed successfully!');
-            location.reload();
-        } else {
-            alert('Error: ' + data.error);
-        }
-    })
-    .catch(error => {
-        alert('Error: ' + error);
-    });
-}
 </script>
 {% endblock %}

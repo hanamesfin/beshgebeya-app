@@ -3,32 +3,101 @@
 {% block title %}Login - BeshGebeya{% endblock %}
 
 {% block content %}
-<div class="auth-container">
-    <div class="auth-box">
+<div class="auth-container full-height">
+    <div class="auth-box reveal">
         <div class="auth-logo">
-            <img src="{{ url_for('static', filename='images/logo.png') }}" alt="BeshGebeya Logo" class="auth-logo-img">
-            <span class="logo-text-large">በሽ ገበያ</span>
-            <span class="logo-subtitle-large">Besh Gebeya</span>
+            <img src="{{ url_for('static', filename='images/logo.png') }}" alt="BeshGebeya Logo"
+                class="auth-logo-img-large">
         </div>
-        <h2>Login to Your Account</h2>
-        
-        <form method="POST" action="{{ url_for('login') }}">
+
+        <form method="POST" action="{{ url_for('login') }}" class="modern-form">
             <div class="form-group">
-                <label for="username">Username</label>
-                <input type="text" id="username" name="username" required>
+                <label for="username" data-en="Identifier" data-am="መለያ">Username, Email or Phone</label>
+                <input type="text" id="username" name="username" required placeholder="Enter your credentials"
+                    class="glass-input">
             </div>
-            
+
             <div class="form-group">
-                <label for="password">Password</label>
-                <input type="password" id="password" name="password" required>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <label for="password" class="mb-0">Password</label>
+                    <a href="{{ url_for('forgot_password') }}" class="small-link">Forgot?</a>
+                </div>
+                <div class="password-wrapper">
+                    <input type="password" id="password" name="password" required class="glass-input">
+                    <span class="password-toggle" onclick="togglePasswordVisibility('password')">
+                        <svg id="eye-icon-password" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                            <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                    </span>
+                </div>
             </div>
-            
-            <button type="submit" class="btn-primary">Login</button>
+
+            <button type="submit" class="glass-btn-blue w-100 mt-3 btn-auth" data-en="Login" data-am="ይግቡ">
+                Login
+            </button>
         </form>
-        
-        <p class="auth-link">
-            Don't have an account? <a href="{{ url_for('signup') }}">Sign up</a>
+
+        <div class="social-auth-separator slide-in-right delay-2">
+            <span data-en="Alternative Sign-in" data-am="ወይም በዚህ ይቀጥሉ">Alternative Sign-in</span>
+        </div>
+
+        <div class="social-auth-buttons slide-in-right delay-3">
+            <a href="{{ url_for('login_google') }}" class="social-btn glass-btn-white flex-1 p-2">
+                <svg width="18" height="18" viewBox="0 0 24 24" class="me-2">
+                    <path fill="#EA4335"
+                        d="M24 12.27c0-.85-.07-1.66-.21-2.44H12.23v4.62h6.59c-.28 1.5-1.13 2.76-2.41 3.61v3h3.89c2.28-2.1 3.7-5.18 3.7-8.19z" />
+                    <path fill="#34A853"
+                        d="M12.23 24c3.24 0 5.96-1.07 7.95-2.91l-3.89-3c-1.08.73-2.47 1.16-4.06 1.16-3.12 0-5.76-2.11-6.7-4.94H1.54v3.13C3.52 21.37 7.6 24 12.23 24z" />
+                    <path fill="#FBBC05"
+                        d="M5.53 14.31c-.24-.72-.37-1.49-.37-2.31s.14-1.59.37-2.31V6.56H1.54C.56 8.51 0 10.7 0 13s.56 4.49 1.54 6.44l3.99-3.13z" />
+                    <path fill="#4285F4"
+                        d="M12.23 4.75c1.77 0 3.35.61 4.6 1.8l3.45-3.45C18.18 1.17 15.47 0 12.23 0 7.6 0 3.52 2.63 1.54 6.56L5.53 9.69c.94-2.83 3.58-4.94 6.7-4.94z" />
+                </svg>
+                Google
+            </a>
+            <a href="{{ url_for('login_apple') }}" class="social-btn glass-btn-white flex-1 p-2">
+                <svg width="18" height="18" viewBox="0 0 24 24" class="me-2">
+                    <path fill="currentColor"
+                        d="M17.05 20.28c-.96.95-2.22 1.78-3.73 1.72-1.42-.05-2.2-.84-3.69-.84-1.5 0-2.32.81-3.66.86-1.46.06-2.85-.92-3.84-1.92-2.02-2-3.08-5.32-1.93-8.1 1.05-2.54 3.44-4.14 5.86-4.14 1.48 0 2.5 1 3.4 1 1.05 0 2.05-1.05 3.75-1.05 1.45 0 2.92.82 3.82 2.04-3.1 1.82-2.6 6.06.5 7.42-.74 1.86-1.74 3.52-2.48 4.25zM12.03 5.48c-.12-2.08 1.6-3.88 3.54-3.9 0 0 .34 2.22-1.72 4.18-1.55 1.48-3.18 1.25-3.18 1.25h-.02z" />
+                </svg>
+                Apple
+            </a>
+        </div>
+
+        <p class="auth-link mt-4 opacity-80 slide-in-right delay-4">
+            Don't have an account? <a href="{{ url_for('signup') }}" class="fw-bold highlight-link">Sign up</a>
         </p>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function togglePasswordVisibility(fieldId) {
+        const input = document.getElementById(fieldId);
+        const icon = document.getElementById('eye-icon-' + fieldId);
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>';
+        } else {
+            input.type = 'password';
+            icon.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>';
+        }
+    }
+
+    // Auto-reveal animation
+    document.addEventListener('DOMContentLoaded', () => {
+        setTimeout(() => {
+            const authBox = document.querySelector('.auth-box');
+            if (authBox) authBox.classList.add('active');
+
+            // Trigger slide-in elements
+            document.querySelectorAll('.slide-in-right').forEach(el => {
+                el.classList.add('active');
+            });
+        }, 100);
+    });
+</script>
 {% endblock %}

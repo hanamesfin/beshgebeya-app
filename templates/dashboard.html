@@ -4,147 +4,398 @@
 
 {% block content %}
 <div class="page-header">
-    <h1>🏪 Dashboard</h1>
+    <h1 data-en="🏪 Dashboard" data-am="🏪 ዳሽቦርድ">🏪 Dashboard</h1>
     <div class="header-actions">
-
-        <a href="{{ url_for('admin_panel') }}" class="btn-secondary">👨‍💼 Admin Panel</a>
-        <button onclick="resetDatabase()" class="btn-danger">🗑️ Delete All Products & Inventory</button>
-        <a href="{{ url_for('generate_alerts') }}" class="btn-primary">🔔 Generate Alerts</a>
+        <a href="{{ url_for('admin_panel') }}" class="btn-text-action"><span class="action-icon">👨‍💼</span> <span
+                data-en="Admin Panel" data-am="የአስተዳዳሪ ፓነል">Admin Panel</span></a>
+        <a href="{{ url_for('reports') }}" class="btn-text-action"><span class="action-icon">📈</span> <span
+                data-en="Reports" data-am="ሪፖርቶች">Reports</span></a>
+        <a href="{{ url_for('generate_alerts') }}" class="btn-text-action"><span class="action-icon">🔔</span> <span
+                data-en="Generate Alerts" data-am="ማንቂያዎችን ፍጠር">Generate Alerts</span></a>
+        {% if session.is_admin %}
+        <a href="{{ url_for('admin_panel') }}#user-management" class="glass-btn-blue"
+            style="padding: 10px 24px; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; font-weight: 600;">
+            <span class="blue-emoji" style="font-size: 1.25rem;">👥</span> <span data-en="User Management"
+                data-am="የተጠቃሚ አስተዳደር"></span>
+        </a>
+        {% endif %}
     </div>
 </div>
 
-
-<div class="section">
-    <h2>⚠️ Products Expiring Soon (0–90 Days)</h2>
-
-    {% if expiring_0_90 %}
-    <table class="data-table">
-        <thead>
-            <tr>
-                <th>Product</th>
-                <th>Quantity</th>
-                <th>Expiry Date</th>
-                <th>Days Left</th>
-                <th>Status</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for item in expiring_0_90 %}
-            {% set days_left = (item.expiry_date - now).days %}
-            <tr class="{% if days_left <= 30 %}row-expired{% else %}row-expiring{% endif %}">
-                <td><strong>{{ item.product.name }}</strong></td>
-                <td>{{ item.quantity_on_hand }} units</td>
-                <td>{{ item.expiry_date.strftime('%Y-%m-%d') }}</td>
-                <td>
-                    {% if days_left <= 30 %} <span class="badge badge-critical">{{ days_left }} days</span>
-                        {% else %}
-                        <span class="badge badge-warning">{{ days_left }} days</span>
-                        {% endif %}
-                </td>
-                <td><span class="badge badge-{{ item.status|lower }}">{{ item.status }}</span></td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    {% else %}
-    <p class="empty-state">No products expiring in the next 90 days</p>
-    {% endif %}
-</div>
-
-
-<div class="section">
-    <h2>📅 Products Expiring Later (90–180 Days)</h2>
-
-    {% if expiring_180 %}
-    <table class="data-table">
-        <thead>
-            <tr>
-                <th>Product</th>
-                <th>Quantity</th>
-                <th>Expiry Date</th>
-                <th>Days Left</th>
-                <th>Status</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for item in expiring_180 %}
-            {% set days_left = (item.expiry_date - now).days %}
-            <tr class="row-expiring">
-                <td><strong>{{ item.product.name }}</strong></td>
-                <td>{{ item.quantity_on_hand }} units</td>
-                <td>{{ item.expiry_date.strftime('%Y-%m-%d') }}</td>
-                <td>
-                    <span class="badge badge-warning">{{ days_left }} days</span>
-                </td>
-                <td><span class="badge badge-{{ item.status|lower }}">{{ item.status }}</span></td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    {% else %}
-    <p class="empty-state">No products expiring between 90 and 180 days</p>
-    {% endif %}
-</div>
-
-
-<div class="section">
-    <h2>🔔 Active Alerts</h2>
-    {% if alerts %}
-    <div class="alerts-list">
-        {% for alert in alerts %}
-        <div class="alert-item alert-{{ alert.type|lower }}">
-            <span class="alert-icon">
-                {% if alert.type == 'LOW_STOCK' %}⚠️
-                {% elif alert.type == 'NEAR_EXPIRY' %}⏰
-                {% else %}🚫{% endif %}
-            </span>
-            <div class="alert-content">
-                <p>{{ alert.message }}</p>
-                <small>{{ alert.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+<div class="dashboard-charts-section">
+    <div class="charts-grid">
+        <!-- Pie Chart: Expiry Status Distribution -->
+        <div class="crystal-card crystal-shimmer stagger-reveal" style="position: relative;">
+            <!-- pulsing point -->
+            <div class="highlight-point" style="top: 20px; right: 20px;">
+                <div class="tooltip">Analysis of products by risk level based on FEFO (First-Expired-First-Out).</div>
+            </div>
+            <h3><span style="font-size: 1.5rem;">🚨</span> <span data-en="Expiry Risk Level"
+                    data-am="የጊዜ ማለፊያ ስጋት ደረጃ">Expiry Risk Level</span></h3>
+            <div class="chart-container">
+                <canvas id="expiryPieChart"></canvas>
             </div>
         </div>
-        {% endfor %}
+
+        <!-- Bar Chart: Priority FOFO Countdown -->
+        <div class="crystal-card stagger-reveal">
+            <h3><span style="font-size: 1.5rem;">⏳</span> <span data-en="FEFO Priority (Days Left)"
+                    data-am="FEFO ቅድሚያ (የቀሩት ቀናት)">FEFO Priority (Days Left)</span></h3>
+            <div class="chart-container">
+                <canvas id="fefoBarChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Bar Chart: Category Stock Balance -->
+        <div class="crystal-card stagger-reveal">
+            <h3><span style="font-size: 1.5rem;">📦</span> <span data-en="Stock by Category" data-am="እቃዎች በዘርፍ">Stock
+                    by Category</span></h3>
+            <div class="chart-container">
+                <canvas id="categoryStockChart"></canvas>
+            </div>
+        </div>
     </div>
-    {% else %}
-    <p class="empty-state">No active alerts</p>
-    {% endif %}
 </div>
+
+<div class="dashboard-grid" id="dashboardGrid">
+
+    <!-- Card 1: Expiring Soon -->
+    <!-- Card 1: Expiring Soon (Refined Crystal Glass) -->
+    <div class="crystal-card crystal-shimmer stagger-reveal" data-card="soon" onclick="focusCard(this)"
+        style="position: relative;">
+        <!-- pulsing point -->
+        <div class="highlight-point" style="top: 20px; right: 20px;">
+            <div class="tooltip">Urgent attention required: Items expiring within the next 90 days.</div>
+        </div>
+        <div class="card-title">
+            <span class="icon-circle blue-emoji">⚠️</span>
+            <div class="title-text">
+                <h3 data-en="Expiring Soon" data-am="በቅርቡ የሚያበቃ">Expiring Soon</h3>
+                <p class="subtitle" data-en="0–90 Day Window" data-am="0–90 ቀን ውስጥ">0–90 Day Window</p>
+            </div>
+            <span class="glass-pill {% if expiring_0_90 %}pill-critical{% endif %}">
+                {{ expiring_0_90 | length if expiring_0_90 else 0 }} <span data-en="items" data-am="እቃዎች">items</span>
+            </span>
+        </div>
+
+        <div class="card-content">
+            {% if expiring_0_90 %}
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th data-en="Product" data-am="ምርት">Product</th>
+                            <th data-en="Qty" data-am="ብዛት">Qty</th>
+                            <th data-en="Days Left" data-am="የቀሩት ቀናት">Days Left</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in expiring_0_90[:10] %}
+                        {% set days_left = (item.expiry_date - now).days %}
+                        <tr>
+                            <td><strong data-en="{{ item.product.name }}"
+                                    data-am="{{ item.product.local_name or item.product.name }}">{{ item.product.name
+                                    }}</strong></td>
+                            <td>{{ item.quantity_on_hand }}</td>
+                            <td>
+                                <span
+                                    class="badge {% if days_left <= 30 %}badge-critical{% else %}badge-warning{% endif %}">
+                                    {{ days_left }}d
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="card-empty-state">
+                <div class="empty-icon-wrapper">
+                    <span class="empty-emoji blue-emoji">✅</span>
+                </div>
+                <p class="empty-headline">All clear</p>
+                <p class="empty-subtext">No immediate expirations to track in the next 90 days.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Card 2: Expiring Later (Refined Crystal Glass) -->
+    <div class="crystal-card" data-card="later" onclick="focusCard(this)">
+        <div class="card-title">
+            <span class="icon-circle blue-emoji">📅</span>
+            <div class="title-text">
+                <h3>Expiring Later</h3>
+                <p class="subtitle">90–180 Day Window</p>
+            </div>
+            <span class="glass-pill {% if expiring_180 %}pill-warning{% endif %}">
+                {{ expiring_180 | length if expiring_180 else 0 }} items
+            </span>
+        </div>
+
+        <div class="card-content">
+            {% if expiring_180 %}
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th data-en="Product" data-am="ምርት">Product</th>
+                            <th data-en="Qty" data-am="ብዛት">Qty</th>
+                            <th data-en="Days Left" data-am="የቀሩት ቀናት">Days Left</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in expiring_180[:10] %}
+                        {% set days_left = (item.expiry_date - now).days %}
+                        <tr>
+                            <td><strong data-en="{{ item.product.name }}"
+                                    data-am="{{ item.product.local_name or item.product.name }}">{{ item.product.name
+                                    }}</strong></td>
+                            <td>{{ item.quantity_on_hand }}</td>
+                            <td><span class="badge badge-warning">{{ days_left }}d</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="card-empty-state">
+                <div class="empty-icon-wrapper">
+                    <span class="empty-emoji blue-emoji">🗓️</span>
+                </div>
+                <p class="empty-headline">Inventory stable</p>
+                <p class="empty-subtext">Your stock is safe for the next 6 months.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Card 3: Active Alerts (Refinement) -->
+    <div class="crystal-card" data-card="alerts" onclick="focusCard(this)">
+        <div class="card-title">
+            <span class="icon-circle blue-emoji">🔔</span>
+            <div class="title-text">
+                <h3>Active Alerts</h3>
+                <p class="subtitle">System Notifications</p>
+            </div>
+            <span class="glass-pill {% if alerts %}pill-info{% endif %}">
+                {{ alerts | length if alerts else 0 }} items
+            </span>
+        </div>
+
+        <div class="card-content">
+            {% if alerts %}
+            <div class="alerts-list">
+                {% for alert in alerts[:8] %}
+                <div class="alert-item alert-{{ alert.type|lower }}">
+                    <span class="alert-icon">
+                        {% if alert.type == 'LOW_STOCK' %}⚠️
+                        {% elif alert.type == 'NEAR_EXPIRY' %}⏰
+                        {% else %}🚫{% endif %}
+                    </span>
+                    <div class="alert-content">
+                        <p>{{ alert.message }}</p>
+                        <small>{{ alert.created_at.strftime('%b %d, %H:%M') }}</small>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="card-empty-state">
+                <div class="empty-icon-wrapper">
+                    <span class="empty-emoji blue-emoji">🔕</span>
+                </div>
+                <p class="empty-headline">System quiet</p>
+                <p class="empty-subtext">No issues require your attention right now.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+    // Reveal charts with GSAP on load
+    document.addEventListener('DOMContentLoaded', () => {
+        gsap.from(".crystal-card canvas", {
+            opacity: 0,
+            scale: 0.9,
+            duration: 1,
+            stagger: 0.2,
+            ease: "expo.out",
+            delay: 0.5
+        });
+    });
+</script>
 
 
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    async function resetDatabase() {
-        if (!confirm("⚠️ CAUTION: This will PERMANENTLY DELETE all products and all inventory records. This cannot be undone.\n\nAre you absolutely sure you want to proceed?")) {
-            return;
-        }
+    // Chart Customization based on user preference & theme
+    const userChartStyle = "{{ user.chart_style or 'glass' }}";
+    const isDarkMode = document.documentElement.classList.contains('dark');
 
-        // Double confirmation for extreme safety
-        const verification = prompt("To confirm, please type 'DELETE ALL' below:");
-        if (verification !== 'DELETE ALL') {
-            alert("Verification failed. Nothing was deleted.");
-            return;
-        }
+    // High Contrast Palettes for Pure Black Theme
+    const standardPalette = isDarkMode
+        ? ["#3b82f6", "#10b981", "#f59e0b", "#ef4444"] // Solid contrast
+        : ["rgba(0, 123, 255, 0.75)", "rgba(0, 180, 255, 0.7)", "rgba(0, 210, 255, 0.65)", "rgba(100, 200, 255, 0.6)"];
 
-        try {
-            const response = await fetch('/api/admin/reset-database', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' }
-            });
+    let crystalPalette = [...standardPalette];
+    let barBg = isDarkMode ? "rgba(59, 130, 246, 0.6)" : "rgba(30, 144, 255, 0.4)";
+    let borderThickness = 1;
+    let barRadius = 4;
 
-            const result = await response.json();
-
-            if (result.success) {
-                alert("✅ Database has been cleared successfully.");
-                window.location.reload();
-            } else {
-                alert("❌ Error resetting database: " + result.error);
-            }
-        } catch (error) {
-            console.error("Error:", error);
-            alert("❌ A network error occurred while trying to reset the database.");
-        }
+    if (userChartStyle === 'minimal') {
+        crystalPalette = isDarkMode
+            ? ["#475569", "#64748b", "#94a3b8", "#cbd5e1"]
+            : ["rgba(71, 85, 105, 0.6)", "rgba(100, 116, 139, 0.5)", "rgba(148, 163, 184, 0.4)", "rgba(203, 213, 225, 0.3)"];
+        barBg = isDarkMode ? "#475569" : "rgba(148, 163, 184, 0.3)";
+        borderThickness = 0.5;
+        barRadius = 2;
+        Chart.defaults.elements.line = Chart.defaults.elements.line || {};
+        Chart.defaults.elements.line.fill = false;
+        Chart.defaults.elements.point = Chart.defaults.elements.point || {};
+        Chart.defaults.elements.point.radius = 0;
+    } else if (userChartStyle === 'detailed') {
+        crystalPalette = isDarkMode
+            ? ["#2563eb", "#059669", "#d97706", "#dc2626"] // Darker solid
+            : ["#007bff", "#28a745", "#ffc107", "#dc3545"];
+        barBg = crystalPalette[0];
+        borderThickness = 1.5;
+        barRadius = 0;
     }
+
+    const gridConfig = {
+        color: isDarkMode ? "rgba(255, 255, 255, 0.15)" : "rgba(0, 0, 0, 0.05)",
+        drawBorder: false
+    };
+
+    const tickConfig = {
+        color: isDarkMode ? "#ffffff" : "rgba(30, 58, 138, 0.7)",
+        font: { family: "'Inter', sans-serif", weight: 500 }
+    };
+
+    // 1. Expiry Status Pie Chart
+    const expiryLabels = {{ expiry_labels | tojson | safe }};
+    const expiryValues = {{ expiry_values | tojson | safe }};
+    const expiryCtx = document.getElementById('expiryPieChart');
+    if (expiryCtx) {
+        new Chart(expiryCtx.getContext('2d'), {
+            type: 'pie',
+            data: {
+                labels: expiryLabels,
+                datasets: [{
+                    data: expiryValues,
+                    backgroundColor: crystalPalette,
+                    borderColor: "rgba(255,255,255,0.8)",
+                    borderWidth: 2,
+                    spacing: 8,
+                    hoverOffset: 40
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: {
+                    animateRotate: true,
+                    animateScale: true,
+                    duration: 2000,
+                    easing: 'easeOutQuart'
+                },
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 20,
+                            color: "rgba(30, 58, 138, 0.85)"
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // 2. FEFO Bar Chart (Nearest Expiry)
+    const fefoLabels = {{ fefo_labels | tojson | safe }};
+    const fefoDays = {{ fefo_days | tojson | safe }};
+    const fefoCtx = document.getElementById('fefoBarChart');
+    if (fefoCtx) {
+        new Chart(fefoCtx.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: fefoLabels,
+                datasets: [{
+                    label: 'Days to Expiry',
+                    data: fefoDays,
+                    backgroundColor: barBg,
+                    borderColor: "rgba(0, 123, 255, 0.3)",
+                    borderWidth: borderThickness,
+                    borderRadius: barRadius
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        grid: gridConfig,
+                        ticks: tickConfig
+                    },
+                    y: {
+                        grid: { display: false },
+                        ticks: tickConfig
+                    }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+    }
+
+    // 3. Category Stock Bar Chart
+    const catLabels = {{ cat_labels | tojson | safe }};
+    const catValues = {{ cat_values | tojson | safe }};
+    const catCtx = document.getElementById('categoryStockChart');
+    if (catCtx) {
+        new Chart(catCtx.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: catLabels,
+                datasets: [{
+                    label: 'Units in Stock',
+                    data: catValues,
+                    backgroundColor: barBg,
+                    borderColor: "rgba(30, 144, 255, 0.2)",
+                    borderWidth: borderThickness,
+                    borderRadius: barRadius
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: gridConfig,
+                        ticks: tickConfig
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: tickConfig
+                    }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+    }
+
 </script>
 {% endblock %}

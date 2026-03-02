@@ -1,0 +1,198 @@
+{% extends 'base.html' %}
+
+{% block title %}Help & User Guide - BeshGebeya{% endblock %}
+{% block body_class %}help-theme{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/help.css') }}">
+<script>document.documentElement.classList.add('help-page-active');</script>
+
+<div class="help-sidebar">
+    <h4>Contents</h4>
+    <a href="#dashboard">Dashboard</a>
+    <a href="#products">Products</a>
+    <a href="#inventory">Inventory</a>
+    <a href="#sales">Sales</a>
+    <a href="#analytics">Analytics</a>
+    <a href="#account">Account</a>
+</div>
+
+<div class="crystal-glass reveal" style="text-align: center; margin-top: 40px;">
+    <h1 style="font-size: 38px; color: #1e90ff; margin-bottom: 10px; text-shadow: 0 0 15px rgba(30,144,255,0.4);">
+        Welcome to BeshGebeya
+    </h1>
+    <h3 style="color: #6dd5fa; margin-bottom: 20px; font-weight: 500;">
+        A Complete Administrative Control System
+    </h3>
+    <p style="color: #cbd5e1; font-size: 16px; max-width: 600px; margin: 0 auto; line-height: 1.6;">
+        This guide walks you through every feature, button, data table, and analytical insight available in the system.
+        Explore the elegant flows built just for you.
+    </p>
+</div>
+
+<!-- SECTION 1: DASHBOARD -->
+<section class="help-section reveal" id="dashboard">
+    <h2>Dashboard Overview</h2>
+    <div class="help-content">
+        <div class="help-image">
+            <img src="{{ url_for('static', filename='images/Dashboard.png') }}" alt="Dashboard Screenshot"
+                onerror="this.style.display='none'">
+
+            <div class="highlight-point" style="top:25%; left:30%;">
+                <div class="tooltip">Summary Cards showing Revenue, Products, and Sales in real-time.</div>
+            </div>
+            <div class="arrow-line" style="top:28%; left:35%;"></div>
+
+            <div class="highlight-point" style="top:50%; left:20%;">
+                <div class="tooltip">Hover over the Pie Chart to see exact product distribution logic.</div>
+            </div>
+
+            <div class="highlight-point" style="top:65%; left:60%;">
+                <div class="tooltip">Line Graph tracking revenue trends over the recent period.</div>
+            </div>
+        </div>
+        <div class="help-description">
+            <h3>🏠 The Command Center</h3>
+            <p>The Dashboard provides an instant, premium overview of your entire operation.</p>
+            <ul>
+                <li><strong>Summary Cards</strong>: Top-level metrics for Revenue, Products, and Sales.</li>
+                <li><strong>Product Distribution Space</strong>: The animated pie chart breaks down categories.</li>
+                <li><strong>Revenue Trendline</strong>: A dynamic line graph showing financial momentum over time.</li>
+                <li><strong>Real-time UI</strong>: All metrics update automatically.</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+<!-- SECTION 2: PRODUCTS -->
+<section class="help-section reveal" id="products">
+    <h2>Product Management Guide</h2>
+    <div class="help-content">
+        <div class="help-image">
+            <img src="{{ url_for('static', filename='images/Import.png') }}" alt="Import Screenshot"
+                onerror="this.style.display='none'">
+            <div class="highlight-point" style="top:15%; left:80%;">
+                <div class="tooltip">Add Product Button: Click to create a new item with validation.</div>
+            </div>
+            <div class="highlight-point" style="top:15%; left:65%;">
+                <div class="tooltip">Bulk Import: Upload entire catalogs via Excel seamlessly.</div>
+            </div>
+            <div class="highlight-point" style="top:50%; left:85%;">
+                <div class="tooltip">Quick Edit & Delete: Beautiful, animated actions for every row.</div>
+            </div>
+        </div>
+        <div class="help-description">
+            <h3>📦 Catalog Control</h3>
+            <p>Manage your entire product catalog with speed and precision.</p>
+            <ul>
+                <li><strong>Add Product</strong>: A clean modal with required fields.</li>
+                <li><strong>Bulk Import</strong>: Upload Excel files to map thousands of products instantly.</li>
+                <li><strong>Table Actions</strong>: Click the edit pen to modify an item, or the trash can to delete it.
+                </li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+<!-- SECTION 3: INVENTORY -->
+<section class="help-section reveal" id="inventory">
+    <h2>Inventory Section</h2>
+    <div class="help-content">
+        <div class="help-image">
+            <img src="{{ url_for('static', filename='images/Inventory.png') }}" alt="Inventory Screenshot"
+                onerror="this.style.display='none'">
+            <div class="highlight-point" style="top:40%; left:50%;">
+                <div class="tooltip">Stock Levels column. Watch out for red highlighted low-stock items!</div>
+            </div>
+            <div class="arrow-line" style="top:43%; left:30%;"></div>
+            <div class="highlight-point" style="top:10%; left:20%;">
+                <div class="tooltip">Powerful search to instantly find stock.</div>
+            </div>
+        </div>
+        <div class="help-description">
+            <h3>📊 Stock & Flow</h3>
+            <p>Maintain perfect volume control across all branches.</p>
+            <ul>
+                <li><strong>Visual Indicators</strong>: When stock runs critically low, the system flashes warnings.
+                </li>
+                <li><strong>Update Stock</strong>: Instantly adjust on-hand quantities without leaving the page.</li>
+                <li><strong>Search & Filter</strong>: Combine tools to locate specific items instantly.</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+<!-- SECTION 4: ADMIN PANEL -->
+<section class="help-section reveal" id="admin">
+    <h2>Admin Control Panel</h2>
+    <div class="help-content">
+        <div class="help-image">
+            <img src="{{ url_for('static', filename='images/AdminPanel.png') }}" alt="Admin Panel Screenshot"
+                onerror="this.style.display='none'">
+            <div class="highlight-point" style="top:25%; left:30%;">
+                <div class="tooltip">Manage users, roles, and system-wide settings.</div>
+            </div>
+        </div>
+        <div class="help-description">
+            <h3>👨‍💼 Control Center</h3>
+            <p>Enterprise-grade administration at your fingertips.</p>
+            <ul>
+                <li><strong>User Management</strong>: Approve new registrations and assign roles.</li>
+                <li><strong>Role Security</strong>: Toggle between Admin and User permissions instantly.</li>
+                <li><strong>Data Reset</strong>: Carefully clear catalogs or reset the database when necessary.</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+<style>
+    /* Section specific style adjustments for better clarity */
+    .help-section {
+        margin-bottom: 150px !important;
+    }
+
+    .help-image img {
+        transition: transform 0.5s ease;
+    }
+
+    .help-image:hover img {
+        transform: scale(1.02);
+    }
+</style>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+
+        // Removes smooth scrolling behavior from html when leaving
+        window.addEventListener('beforeunload', () => {
+            document.documentElement.classList.remove('help-page-active');
+        });
+
+        // Intersection Observer for silky slide-up reveal
+        const reveals = document.querySelectorAll('.reveal');
+        const observer = new IntersectionObserver(entries => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('active');
+                }
+            });
+        }, { threshold: 0.15 });
+
+        reveals.forEach(section => {
+            observer.observe(section);
+        });
+
+        // Parallax background effect for depth
+        window.addEventListener("scroll", () => {
+            // Adjust background position specifically on body for the help page
+            if (document.body.classList.contains('help-theme')) {
+                const scrollY = window.scrollY;
+                document.body.style.backgroundPosition = `0px ${scrollY * 0.2}px`;
+            }
+        });
+    });
+</script>
+{% endblock %}

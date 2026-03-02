@@ -1,0 +1,29 @@
+{% if sales %}
+{% for sale in sales %}
+<div class="sale-card stagger-reveal">
+    <div class="sale-header">
+        <div>
+            <h3><span data-en="Sale #" data-am="ሽያጭ #">Sale #</span>{{ sale.id }}</h3>
+            <small>{{ sale.sale_date.strftime('%Y-%m-%d %H:%M') }}</small>
+            <small> • {{ sale.user.name if sale.user else 'Unknown' }} • {{ sale.branch.name if sale.branch else
+                'Unknown' }}</small>
+        </div>
+        <div class="sale-amount">
+            <h2>{{ "{:,.2f}".format(sale.total_amount) }} ETB</h2>
+            <span class="badge badge-info">{{ sale.payment_type }}</span>
+        </div>
+    </div>
+    <div class="sale-items-list">
+        <strong data-en="Items:" data-am="ዕቃዎች:">Items:</strong>
+        {% for item in sale.items %}
+        <div class="sale-item-row">
+            <span data-en="{{ item.product.name }}" data-am="{{ item.product.local_name or item.product.name }}">{{
+                item.product.name }}</span> × {{ item.quantity }} = {{ "{:,.2f}".format(item.price) }} ETB
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endfor %}
+{% else %}
+<p class="empty-state" data-en="No sales recorded yet" data-am="እስካሁን ምንም ሽያጭ የለም">No sales recorded yet</p>
+{% endif %}
