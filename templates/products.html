@@ -376,7 +376,7 @@
                         // Fallback: just submit normally
                         form.action = '/products';
                         form.method = 'POST';
-                        form.submit();
+                        HTMLFormElement.prototype.submit.call(form);
                     });
                     return;
                 }

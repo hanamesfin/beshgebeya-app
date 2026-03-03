@@ -339,7 +339,7 @@
                     }).catch(() => {
                         form.action = '/inventory';
                         form.method = 'POST';
-                        form.submit();
+                        HTMLFormElement.prototype.submit.call(form);
                     });
                     return;
                 }
