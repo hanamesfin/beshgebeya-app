@@ -259,7 +259,9 @@
             edit: function (inventoryId) {
                 // Use Alpine.js to show the form
                 const alpineEl = document.querySelector('[x-data]');
-                if (alpineEl && alpineEl._x_dataStack) {
+                if (alpineEl && alpineEl.__x) {
+                    alpineEl.__x.$data.showForm = true;
+                } else if (alpineEl && alpineEl._x_dataStack) {
                     const alpineData = alpineEl._x_dataStack[0];
                     if (alpineData) { alpineData.showForm = true; }
                 }
@@ -272,6 +274,7 @@
                         if (data.success) {
                             const inv = data.inventory;
                             const f = document.getElementById('inventory-form-element');
+                            const container = document.getElementById('inventory-form');
                             f.inventory_id.value = inv.id;
                             f.product_id.value = inv.product_id;
                             f.quantity_on_hand.value = inv.quantity_on_hand;
@@ -282,7 +285,8 @@
                             // New fields
                             if (f.unit_of_measure) f.unit_of_measure.value = inv.unit_measure || '';
 
-                            form.scrollIntoView({ behavior: 'smooth' });
+                            // Scroll to form after Alpine renders it
+                            setTimeout(() => container.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
                         } else {
                             showToast('Error: ' + data.error, 'error');
                         }
