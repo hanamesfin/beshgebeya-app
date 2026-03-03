@@ -40,9 +40,6 @@
                 data-en="Search inventory name, batch, or SKU..." data-am="የዕቃዎች ስም፣ ባች ወይም SKU ይፈልጉ..."
                 style="flex: 1; border: none; background: transparent; font-size: 1.1rem; padding: 10px; outline: none;"
                 onkeydown="handleScan(event)">
-
-            <button onclick="searchProduct()" class="btn-primary" data-en="Search" data-am="ፈልግ"
-                style="border-radius: var(--radius-full);">Search</button>
             <button id="start-camera-btn" onclick="startCamera()" class="icon-btn-blue" title="Camera Scanner"
                 style="border-radius: var(--radius-full); width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;">
                 <span class="blue-emoji">📷</span>
@@ -249,13 +246,6 @@
 
     {% block scripts %}
     <script>
-        function toggleForm() {
-            InventoryManager.resetForm();
-            var form = document.getElementById('inventory-form');
-            var scanner = document.getElementById('barcode-scanner');
-            scanner.classList.remove('active');
-            form.classList.toggle('active');
-        }
 
         const InventoryManager = {
             resetForm: function () {
@@ -267,8 +257,12 @@
             },
 
             edit: function (inventoryId) {
-                const formContainer = document.getElementById('inventory-form');
-                formContainer.classList.add('active');
+                // Use Alpine.js to show the form
+                const alpineEl = document.querySelector('[x-data]');
+                if (alpineEl && alpineEl._x_dataStack) {
+                    const alpineData = alpineEl._x_dataStack[0];
+                    if (alpineData) { alpineData.showForm = true; }
+                }
                 document.getElementById('form-title').innerText = 'Edit Inventory Record';
                 document.getElementById('submit-btn').innerText = 'Update Record';
 
@@ -449,20 +443,24 @@
                     var resultDiv = document.getElementById('scan-result');
                     if (data.success) {
                         resultDiv.innerHTML = `
-                <div class="scan-success crystal-card stagger-reveal" style="padding: 20px; text-align: center; border: 1px solid var(--royal-blue);">
-                    <h3 style="color: var(--royal-blue);">✅ Product Found!</h3>
-                    <p style="font-size: 1.25rem;"><strong>${data.product.name}</strong> ${data.product.local_name ? '(' + data.product.local_name + ')' : ''}</p>
-                    <p>Current Stock: <span class="glass-pill">${data.product.stock} units</span></p>
-                    <button onclick="addToInventory(${data.product.id})" class="btn-primary" style="margin-top: 15px; width: 100%;">Add Stock to this Product</button>
-                </div>
-            `;
+    <div class="scan-success crystal-card stagger-reveal"
+        style="padding: 20px; text-align: center; border: 1px solid var(--royal-blue);">
+        <h3 style="color: var(--royal-blue);">✅ Product Found!</h3>
+        <p style="font-size: 1.25rem;"><strong>${data.product.name}</strong> ${data.product.local_name ? '(' +
+                                data.product.local_name + ')' : ''}</p>
+        <p>Current Stock: <span class="glass-pill">${data.product.stock} units</span></p>
+        <button onclick="addToInventory(${data.product.id})" class="btn-primary"
+            style="margin-top: 15px; width: 100%;">Add Stock to this Product</button>
+    </div>
+    `;
                     } else {
                         resultDiv.innerHTML = `
-                <div class="scan-error crystal-card stagger-reveal" style="padding: 20px; text-align: center; border: 1px solid var(--apple-red);">
-                    <h3 style="color: var(--apple-red);">❌ Product Not Found</h3>
-                    <p>No product found with code: <strong>${code}</strong></p>
-                </div>
-            `;
+    <div class="scan-error crystal-card stagger-reveal"
+        style="padding: 20px; text-align: center; border: 1px solid var(--apple-red);">
+        <h3 style="color: var(--apple-red);">❌ Product Not Found</h3>
+        <p>No product found with code: <strong>${code}</strong></p>
+    </div>
+    `;
                     }
                 })
                 .catch(error => {
