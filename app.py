@@ -1083,14 +1083,8 @@ def admin_panel():
 
 @app.errorhandler(500)
 def internal_error(error):
-    return "Internal Server Error: check logs!", 500
-
-
-# =====================
-# ERROR HANDLER
-# =====================
-@app.errorhandler(500)
-def internal_error(error):
+    import traceback
+    app.logger.error("Internal Server Error: %s", traceback.format_exc())
     return "Internal Server Error: check logs!", 500
 
 
@@ -1672,7 +1666,11 @@ def reset_database_api():
 
 
 
+# =====================
+# STARTUP
+# =====================
+with app.app_context():
+    initialize_database(app)
+
 if __name__ == "__main__":
-    with app.app_context():
-        initialize_database(app)
     app.run(debug=True)
