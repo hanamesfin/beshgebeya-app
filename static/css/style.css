@@ -11,9 +11,10 @@
     --primary-blue: #2563EB;
     --dark-blue: #1E3A8A;
     --royal-blue: #3B82F6;
-    --light-blue: #031022;
-    --blue-50: #020f20;
-    --blue-100: #031225;
+    --light-blue: #EFF6FF;
+    --blue-50: #EFF6FF;
+    --blue-100: #DBEAFE;
+    --blue-200: #BFDBFE;
     --blue-600: #2563EB;
     --blue-700: #1D4ED8;
     --blue-800: #1E40AF;
@@ -1378,7 +1379,7 @@ html.dark .auth-container {
 }
 
 .data-table thead {
-    background: var(--blue-50);
+    background: rgba(30, 144, 255, 0.08);
     border-bottom: 2px solid var(--blue-200);
 }
 
@@ -1420,7 +1421,7 @@ html.dark .data-table td {
 }
 
 .data-table tbody tr:hover {
-    background: var(--blue-100);
+    background: rgba(30, 144, 255, 0.08);
     transform: scale(1.005);
     box-shadow: var(--shadow-sm);
 }
@@ -1729,7 +1730,7 @@ small {
 }
 
 .badge-admin {
-    background: var(--blue-100);
+    background: rgba(30, 143, 255, 0.313);
     color: var(--blue-800);
 }
 
@@ -2352,23 +2353,17 @@ html.dark .glass-btn-red {
    SMOOTH REVEAL UTILITIES
    ===================== */
 .reveal-container {
-    display: grid;
-    grid-template-rows: 0fr;
-    transition: grid-template-rows var(--transition-base), margin var(--transition-base);
-    overflow: hidden;
-    margin-bottom: 0;
+    overflow: visible;
+    scroll-margin-top: 160px;
+    /* clears fixed header + sticky search when scrolled into view */
 }
 
 .reveal-container.active {
-    grid-template-rows: 1fr;
     margin-bottom: var(--space-lg);
 }
 
 .reveal-content {
     min-height: 0;
-    opacity: 0;
-    transform: translateY(10px);
-    transition: opacity var(--transition-base), transform var(--transition-base);
 }
 
 .reveal-container.active .reveal-content {

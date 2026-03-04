@@ -276,9 +276,13 @@
             },
 
             edit: function (productId) {
-                // Show form
-                const container = document.getElementById('product-form');
-                container.classList.add('active');
+                // Show form via Alpine.js
+                const alpineEl = document.querySelector('[x-data]');
+                if (alpineEl && alpineEl.__x) {
+                    alpineEl.__x.$data.showForm = true;
+                } else if (alpineEl && alpineEl._x_dataStack) {
+                    alpineEl._x_dataStack[0].showForm = true;
+                }
                 document.getElementById('form-title').innerText = 'Edit Product';
                 document.getElementById('submit-btn').innerText = 'Update Product';
 
@@ -289,6 +293,7 @@
                         if (data.success) {
                             const p = data.product;
                             const form = document.getElementById('product-form-element');
+                            const container = document.getElementById('product-form');
 
                             form.product_id.value = p.id;
                             form.name.value = p.name || '';
@@ -306,8 +311,8 @@
                             form.pack_unit.value = p.pack_unit || '';
                             form.description.value = p.description || '';
 
-                            // Scroll to form
-                            container.scrollIntoView({ behavior: 'smooth' });
+                            // Scroll to form after Alpine renders it
+                            setTimeout(() => container.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
                         } else {
                             alert('Error fetching product: ' + data.error);
                         }
