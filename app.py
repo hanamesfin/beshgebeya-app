@@ -499,13 +499,19 @@ def update_role(user_id):
 
 @app.route('/login/google')
 def login_google():
-    if not os.environ.get('GOOGLE_CLIENT_ID'):
+    client_id = os.environ.get('GOOGLE_CLIENT_ID')
+    if not client_id:
         flash('Google Client ID not configured. Please add it to your .env file.', 'error')
         return redirect(url_for('login'))
     if not os.environ.get('GOOGLE_CLIENT_SECRET'):
         flash('Google Client Secret not configured. Please add it to your .env file.', 'error')
         return redirect(url_for('login'))
+    
+    # Diagnostic Logging
+    masked_id = f"{client_id[:5]}...{client_id[-5:]}" if client_id else "None"
     redirect_uri = url_for('auth_callback', provider='google', _external=True)
+    app.logger.info(f"[OAuth] Initiating Google login. Client ID: {masked_id}, Redirect URI: {redirect_uri}")
+
     return google.authorize_redirect(redirect_uri)
 
 @app.route('/login/apple')
@@ -546,6 +552,9 @@ def auth_callback(provider):
             flash('Invalid provider', 'error')
             return redirect(url_for('login'))
     except Exception as e:
+        import traceback
+        app.logger.error(f"[OAuth] Error in {provider} callback: {str(e)}")
+        app.logger.error(traceback.format_exc())
         flash(f'Authentication error: {str(e)}', 'error')
         return redirect(url_for('login'))
 
@@ -1083,14 +1092,8 @@ def admin_panel():
 
 @app.errorhandler(500)
 def internal_error(error):
-    return "Internal Server Error: check logs!", 500
-
-
-# =====================
-# ERROR HANDLER
-# =====================
-@app.errorhandler(500)
-def internal_error(error):
+    import traceback
+    app.logger.error("Internal Server Error: %s", traceback.format_exc())
     return "Internal Server Error: check logs!", 500
 
 
@@ -1672,7 +1675,11 @@ def reset_database_api():
 
 
 
+# =====================
+# STARTUP
+# =====================
+with app.app_context():
+    initialize_database(app)
+
 if __name__ == "__main__":
-    with app.app_context():
-        initialize_database(app)
     app.run(debug=True)
