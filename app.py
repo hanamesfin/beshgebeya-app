@@ -20,13 +20,29 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.routing import BuildError
+from werkzeug.middleware.proxy_fix import ProxyFix
 from authlib.integrations.flask_client import OAuth
 import click
 # =====================
 # CREATE APP
 # =====================
 app = Flask(__name__)
+# Tell Flask it is behind a proxy so url_for(_external=True) uses https
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "super-secret-key")
+
+# Secure cookies for OAuth CSRF
+is_production = os.environ.get('FLASK_ENV') == 'production' or os.environ.get('RENDER') == 'true'
+if is_production:
+    app.config['SESSION_COOKIE_SECURE'] = True
+    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+    # Ensure Authlib doesn't allow insecure transport in production
+    os.environ['AUTHLIB_INSECURE_TRANSPORT'] = 'false'
+else:
+    # Allow insecure transport for local testing over HTTP
+    os.environ['AUTHLIB_INSECURE_TRANSPORT'] = 'true'
+
 
 # =====================
 # DATABASE CONFIG
