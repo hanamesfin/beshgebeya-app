@@ -3,43 +3,58 @@
 {% block title %}Inventory - BeshGebeya{% endblock %}
 
 {% block content %}
-<div x-data="{ 
-    showScanner: false, 
+<div class="container" x-data="{ 
+    showSearch: false, 
     showForm: false,
-    toggleScanner() { 
-        this.showForm = false; 
-        this.showScanner = !this.showScanner;
-        if (!this.showScanner && html5QrCode) stopCamera();
-        if (this.showScanner) {
-            this.$nextTick(() => document.getElementById('scan-input').focus());
+    toggleSearch() { 
+        this.showSearch = !this.showSearch; 
+        if (this.showSearch) { 
+            this.showForm = false; 
+            this.$nextTick(() => startCamera());
+        } else {
+            stopCamera();
         }
     },
     toggleForm() {
-        this.showScanner = false;
         this.showForm = !this.showForm;
-        if (html5QrCode) stopCamera();
+        if (this.showForm) this.showSearch = false;
         if (this.showForm) InventoryManager.resetForm();
     }
 }">
     <div class="page-header">
         <h1 data-en="📦 Inventory Management" data-am="📦 የእቃዎች አስተዳደር">📦 Inventory Management</h1>
         <div class="header-actions">
-            <button @click="toggleForm()" class="btn-primary" data-en="Add/Update Stock"
-                data-am="እቃ አክል/አዘምን">Add/Update Stock</button>
+            <button @click="toggleSearch()" class="btn-action btn-action-search" title="Toggle Search">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <span data-en="Search/Scan" data-am="ፈልግ/ቃኝ">Search/Scan</span>
+            </button>
+            <button @click="toggleForm()" class="btn-action btn-action-add" title="Add Inventory">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 5v14M5 12h14"></path>
+                </svg>
+                <span data-en="Add/Update Stock" data-am="ክምችት ጨምር/አድስ">Add/Update Stock</span>
+            </button>
         </div>
     </div>
 
     <!-- Persistent Sticky Search -->
-    <div class="sticky-search-container">
+    <div class="sticky-search-container" x-show="showSearch" x-cloak
+        x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 -translate-y-4"
+        x-transition:enter-end="opacity-100 translate-y-0" x-transition:leave="transition ease-in duration-200"
+        x-transition:leave-start="opacity-100 translate-y-0" x-transition:leave-end="opacity-0 -translate-y-4">
         <div class="crystal-card"
             style="padding: 15px 20px; display: flex; align-items: center; gap: 15px; margin-bottom: 20px; border-radius: var(--radius-full);">
             <span class="blue-emoji" style="font-size: 1.5rem;">🔍</span>
-            <input type="text" id="scan-input" name="q" placeholder="Search inventory name, batch, or SKU..."
+            <input type="text" id="search-input" name="q" placeholder="Search inventory name, batch, or SKU..."
                 hx-get="/api/search/inventory" hx-trigger="keyup changed delay:300ms, search"
                 hx-target="#inventory-table-body" hx-swap="innerHTML transition:true"
                 data-en="Search inventory name, batch, or SKU..." data-am="የዕቃዎች ስም፣ ባች ወይም SKU ይፈልጉ..."
-                style="flex: 1; border: none; background: transparent; font-size: 1.1rem; padding: 10px; outline: none;"
-                onkeydown="handleScan(event)">
+                style="flex: 1; border: none; background: transparent; font-size: 1.1rem; padding: 10px; outline: none;">
             <button id="start-camera-btn" onclick="startCamera()" class="icon-btn-blue" title="Camera Scanner"
                 style="border-radius: var(--radius-full); width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;">
                 <span class="blue-emoji">📷</span>
@@ -48,7 +63,6 @@
         <div id="reader"
             style="width: 100%; max-width: 500px; margin: 0 auto; border-radius: 12px; overflow: hidden; display: none;">
         </div>
-        <div id="scan-result" style="margin-bottom: 20px;"></div>
     </div>
 
     <div id="inventory-form" class="reveal-container" x-show="showForm" x-cloak
@@ -363,6 +377,42 @@
                     });
             },
 
+            search: function (query) {
+                if (this.searchTimeout) clearTimeout(this.searchTimeout);
+
+                this.searchTimeout = setTimeout(() => {
+                    query = query.toLowerCase().trim();
+                    const rows = document.querySelectorAll('.data-table tbody tr');
+                    let foundCount = 0;
+
+                    rows.forEach(row => {
+                        const text = row.innerText.toLowerCase();
+                        row.classList.remove('stagger-reveal', 'delay-1', 'delay-2', 'delay-3', 'delay-4', 'delay-5');
+                        if (text.includes(query)) {
+                            row.style.display = '';
+                            foundCount++;
+                            if (foundCount <= 5) {
+                                row.classList.add('stagger-reveal', `delay-${foundCount}`);
+                            }
+                        } else {
+                            row.style.display = 'none';
+                        }
+                    });
+
+                    const emptyMsg = document.querySelector('.empty-search-msg');
+                    if (foundCount === 0 && query !== '') {
+                        if (!emptyMsg) {
+                            const msg = document.createElement('p');
+                            msg.className = 'empty-search-msg empty-state';
+                            msg.innerText = 'No inventory found matching your search.';
+                            document.querySelector('.data-table').after(msg);
+                        }
+                    } else if (emptyMsg) {
+                        emptyMsg.remove();
+                    }
+                }, 150);
+            },
+
             delete: function (inventoryId) {
                 if (!confirm('Are you sure you want to delete this inventory record?')) return;
 
@@ -388,8 +438,6 @@
 
         let html5QrCode = null;
 
-        // Legacy toggleScan removed - logic moved to Alpine.js x-data toggleScanner() method.
-
         function startCamera() {
             const reader = document.getElementById('reader');
             const startBtn = document.getElementById('start-camera-btn');
@@ -400,8 +448,8 @@
             const config = { fps: 10, qrbox: { width: 250, height: 150 } };
 
             html5QrCode.start({ facingMode: "environment" }, config, (decodedText) => {
-                document.getElementById('scan-input').value = decodedText;
-                searchProduct();
+                document.getElementById('search-input').value = decodedText;
+                InventoryManager.search(decodedText);
                 stopCamera();
             }).then(() => {
                 startBtn.innerHTML = '<span class="blue-emoji">⏹️</span> Stop Camera';
@@ -425,66 +473,6 @@
                     reader.style.display = 'none';
                 }).catch(err => console.error("Stop fail:", err));
             }
-        }
-
-        function handleScan(event) {
-            if (event.key === 'Enter') {
-                searchProduct();
-            }
-        }
-
-        function searchProduct() {
-            var code = document.getElementById('scan-input').value.trim();
-            if (!code) return;
-
-            fetch('{{ url_for("search_product") }}', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ code: code })
-            })
-                .then(response => response.json())
-                .then(data => {
-                    var resultDiv = document.getElementById('scan-result');
-                    if (data.success) {
-                        resultDiv.innerHTML = `
-    <div class="scan-success crystal-card stagger-reveal"
-        style="padding: 20px; text-align: center; border: 1px solid var(--royal-blue);">
-        <h3 style="color: var(--royal-blue);">✅ Product Found!</h3>
-        <p style="font-size: 1.25rem;"><strong>${data.product.name}</strong> ${data.product.local_name ? '(' +
-                                data.product.local_name + ')' : ''}</p>
-        <p>Current Stock: <span class="glass-pill">${data.product.stock} units</span></p>
-        <button onclick="addToInventory(${data.product.id})" class="btn-primary"
-            style="margin-top: 15px; width: 100%;">Add Stock to this Product</button>
-    </div>
-    `;
-                    } else {
-                        resultDiv.innerHTML = `
-    <div class="scan-error crystal-card stagger-reveal"
-        style="padding: 20px; text-align: center; border: 1px solid var(--apple-red);">
-        <h3 style="color: var(--apple-red);">❌ Product Not Found</h3>
-        <p>No product found with code: <strong>${code}</strong></p>
-    </div>
-    `;
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                });
-        }
-
-        function addToInventory(productId) {
-            const url = new URL(window.location.href);
-            url.searchParams.set('product_id', productId);
-            window.history.pushState({}, '', url);
-
-            // Access Alpine state to show form
-            const alpineData = document.querySelector('[x-data]').__x.$data;
-            alpineData.showScanner = false;
-            alpineData.showForm = true;
-
-            InventoryManager.resetForm();
-            document.getElementById('product_id').value = productId;
-            document.getElementById('inventory-form').scrollIntoView({ behavior: 'smooth' });
         }
 
         // Attach event listeners for robust handling
