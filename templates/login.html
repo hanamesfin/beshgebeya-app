@@ -2,50 +2,44 @@
 
 {% block title %}Login - BeshGebeya{% endblock %}
 
+{% block body_class %}auth-page{% endblock %}
+
 {% block content %}
-<div class="auth-container full-height">
-    <div class="auth-box reveal">
-        <div class="auth-logo">
+<div class="auth-split-layout">
+    <!-- Left Section: Branding & Graphics -->
+    <div class="auth-left">
+        <div class="auth-left-content slide-in-bottom">
             <img src="{{ url_for('static', filename='images/logo.png') }}" alt="BeshGebeya Logo"
-                class="auth-logo-img-large">
+                class="brand-logo-large mb-4">
+            <h1 class="hero-title" data-en="Manage Your Inventory with Clarity" data-am="በሽ ገበያ">Manage Your Inventory
+                with Clarity</h1>
+            <p class="hero-subtitle"
+                data-en="The most elegant way to track, analyze, and optimize your business operations."
+                data-am="ንግድዎን ለመቆጣጠር እና ለማሳደግ የሚረዳ ዘመናዊ ስርዓት።">The most elegant way to track, analyze, and optimize
+                your business operations.</p>
         </div>
+        <div class="auth-background-decoration"></div>
+    </div>
 
-        <form method="POST" action="{{ url_for('login') }}" class="modern-form">
-            <div class="form-group">
-                <label for="username" data-en="Identifier" data-am="መለያ">Username, Email or Phone</label>
-                <input type="text" id="username" name="username" required placeholder="Enter your credentials"
-                    class="glass-input">
+    <!-- Right Section: Authentication Form -->
+    <div class="auth-right">
+        <div class="auth-box reveal">
+            <!-- Mobile Branding (Hidden on Desktop) -->
+            <div class="mobile-brand d-block d-lg-none text-center mb-4 slide-in-bottom">
+                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="BeshGebeya Logo"
+                    class="mb-2 mobile-brand-logo">
+
             </div>
 
-            <div class="form-group">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <label for="password" class="mb-0">Password</label>
-                    <a href="{{ url_for('forgot_password') }}" class="small-link">Forgot?</a>
-                </div>
-                <div class="password-wrapper">
-                    <input type="password" id="password" name="password" required class="glass-input">
-                    <span class="password-toggle" onclick="togglePasswordVisibility('password')">
-                        <svg id="eye-icon-password" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                            <circle cx="12" cy="12" r="3"></circle>
-                        </svg>
-                    </span>
-                </div>
+            <div class="auth-header slide-in-bottom delay-1">
+                <h2 data-en="Welcome Back" data-am="እንኳን ደህና መጡ">Welcome Back</h2>
+                <p data-en="Enter your credentials to access your dashboard." data-am="ወደ በሽ ገበያ ለመግባት ይግቡ">Enter your
+                    credentials to access your dashboard.</p>
             </div>
 
-            <button type="submit" class="glass-btn-blue w-100 mt-3 btn-auth" data-en="Login" data-am="ይግቡ">
-                Login
-            </button>
-        </form>
 
-        <div class="social-auth-separator slide-in-right delay-2">
-            <span data-en="Alternative Sign-in" data-am="ወይም በዚህ ይቀጥሉ">Alternative Sign-in</span>
-        </div>
-
-        <div class="social-auth-buttons slide-in-right delay-3">
-            <a href="{{ url_for('login_google') }}" class="social-btn glass-btn-white flex-1 p-2">
-                <svg width="18" height="18" viewBox="0 0 24 24" class="me-2">
+            <a href="{{ url_for('login_google') }}" class="social-btn glass-btn-google p-2 w-100 mb-3 modern-btn-hover">
+                <svg width="20" height="20" viewBox="0 0 24 24" class="me-3">
                     <path fill="#EA4335"
                         d="M24 12.27c0-.85-.07-1.66-.21-2.44H12.23v4.62h6.59c-.28 1.5-1.13 2.76-2.41 3.61v3h3.89c2.28-2.1 3.7-5.18 3.7-8.19z" />
                     <path fill="#34A853"
@@ -55,13 +49,52 @@
                     <path fill="#4285F4"
                         d="M12.23 4.75c1.77 0 3.35.61 4.6 1.8l3.45-3.45C18.18 1.17 15.47 0 12.23 0 7.6 0 3.52 2.63 1.54 6.56L5.53 9.69c.94-2.83 3.58-4.94 6.7-4.94z" />
                 </svg>
-                Google
+                Continue with Google
             </a>
-        </div>
 
-        <p class="auth-link mt-4 opacity-80 slide-in-right delay-4">
-            Don't have an account? <a href="{{ url_for('signup') }}" class="fw-bold highlight-link">Sign up</a>
-        </p>
+
+            <div class="social-auth-separator slide-in-bottom delay-3">
+                <span data-en="OR SIGN IN WITH EMAIL" data-am="ወይም በኢሜል ይግቡ">OR SIGN IN WITH EMAIL</span>
+            </div>
+
+            <form method="POST" action="{{ url_for('login') }}" class="modern-form slide-in-bottom delay-4">
+                <div class="form-group modern-input-group">
+                    <label for="username" data-en="Identifier" data-am="መለያ">Email, Username, or Phone</label>
+                    <input type="text" id="username" name="username" required placeholder="Enter your email or username"
+                        class="glass-input modern-input">
+                </div>
+
+                <div class="form-group modern-input-group">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <label for="password" class="mb-0">Password</label>
+                        <a href="{{ url_for('forgot_password') }}" class="small-link hover-underline">Forgot
+                            password?</a>
+                    </div>
+                    <div class="password-wrapper">
+                        <input type="password" id="password" name="password" required placeholder="Enter your password"
+                            class="glass-input modern-input">
+                        <span class="password-toggle" onclick="togglePasswordVisibility('password')">
+                            <svg id="eye-icon-password" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                        </span>
+                    </div>
+                </div>
+
+                <button type="submit" class="glass-btn-blue w-100 mt-4 btn-auth btn-auth-primary" data-en="Log In"
+                    data-am="ይግቡ">
+                    Log In
+                </button>
+            </form>
+
+
+            <p class="auth-link mt-5 text-center opacity-80 slide-in-bottom delay-5">
+                Don't have an account? <a href="{{ url_for('signup') }}"
+                    class="fw-bold highlight-link hover-underline">Sign up</a>
+            </p>
+        </div>
     </div>
 </div>
 {% endblock %}
@@ -87,8 +120,10 @@
             if (authBox) authBox.classList.add('active');
 
             // Trigger slide-in elements
-            document.querySelectorAll('.slide-in-right').forEach(el => {
-                el.classList.add('active');
+            document.querySelectorAll('.slide-in-bottom').forEach((el, index) => {
+                setTimeout(() => {
+                    el.classList.add('active');
+                }, index * 100);
             });
         }, 100);
     });
