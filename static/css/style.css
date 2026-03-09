@@ -86,6 +86,10 @@
     --logo-height-min: 36px;
 }
 
+[x-cloak] {
+    display: none !important;
+}
+
 html.dark {
     /* Sophisticated Dark Navy (High-End SaaS Feel) */
     --surface-light: #020617;
