@@ -61,15 +61,6 @@ google = oauth.register(
     client_kwargs={'scope': 'openid email profile'}
 )
 
-# --- APPLE OAUTH CONFIG ---
-apple = oauth.register(
-    name='apple',
-    client_id=os.environ.get('APPLE_CLIENT_ID'),
-    client_secret=os.environ.get('APPLE_CLIENT_SECRET'),
-    server_metadata_url='https://appleid.apple.com/.well-known/openid-configuration',
-    client_kwargs={'scope': 'name email'}
-)
-
 # =====================
 # MODELS
 # =====================
@@ -358,8 +349,20 @@ def signup():
         db.session.add(user)
         db.session.commit()
 
-        flash('Account created successfully! Please login.', 'success')
-        return redirect(url_for('login'))
+        if user.is_approved:
+            session['user_id'] = user.id
+            session['username'] = user.username
+            session['is_admin'] = user.is_admin
+            flash('Account created successfully! You are now logged in.', 'success')
+            
+            landing_page = getattr(user, 'landing_page', None) or 'dashboard'
+            try:
+                return redirect(url_for(landing_page))
+            except BuildError:
+                return redirect(url_for('dashboard'))
+        else:
+            flash('Account created successfully! Your account is awaiting admin approval before you can login.', 'info')
+            return redirect(url_for('login'))
 
     return render_template('signup.html')
 
@@ -514,17 +517,6 @@ def login_google():
 
     return google.authorize_redirect(redirect_uri)
 
-@app.route('/login/apple')
-def login_apple():
-    if not os.environ.get('APPLE_CLIENT_ID'):
-        flash('Apple Client ID not configured. Please add it to your .env file.', 'error')
-        return redirect(url_for('login'))
-    if not os.environ.get('APPLE_CLIENT_SECRET'):
-        flash('Apple Client Secret not configured. Please add it to your .env file.', 'error')
-        return redirect(url_for('login'))
-    redirect_uri = url_for('auth_callback', provider='apple', _external=True)
-    return apple.authorize_redirect(redirect_uri)
-
 @app.route('/auth/<provider>/callback')
 def auth_callback(provider):
     try:
@@ -538,16 +530,6 @@ def auth_callback(provider):
             email = user_info.get('email')
             name = user_info.get('name')
             id_field = 'google_id'
-        elif provider == 'apple':
-            if not os.environ.get('APPLE_CLIENT_SECRET'):
-                flash('Apple Client Secret is missing. Please check your .env file.', 'error')
-                return redirect(url_for('login'))
-            token = apple.authorize_access_token()
-            user_info = token.get('userinfo')
-            social_id = user_info.get('sub')
-            email = user_info.get('email')
-            name = user_info.get('name', {}).get('firstName', '')
-            id_field = 'apple_id'
         else:
             flash('Invalid provider', 'error')
             return redirect(url_for('login'))
