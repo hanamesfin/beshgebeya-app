@@ -704,39 +704,200 @@ html.dark .glass-pill {
 /* =====================
    AUTHENTICATION PAGES
    ===================== */
-.auth-container {
-    min-height: 80vh;
+body.auth-page {
+    overflow: hidden;
+    /* Prevent scrolling */
+}
+
+body.auth-page .main-header,
+body.auth-page .app-footer,
+body.auth-page #flash-container {
+    display: none !important;
+    /* Hide global elements */
+}
+
+body.auth-page main.container {
+    padding: 0 !important;
+    max-width: 100%;
+}
+
+.auth-split-layout {
+    display: flex;
+    align-items: stretch !important;
+    min-height: 100vh;
+    width: 100vw;
+    background: var(--bg-color);
+    overflow: hidden;
+}
+
+/* --- Left Section (Branding) --- */
+.auth-left {
+    flex: 1;
+    display: none;
+    /* Hidden on mobile by default */
+    flex-direction: column;
+    justify-content: center;
+    padding: 6rem;
+    position: relative;
+    background: linear-gradient(135deg, var(--blue-900), var(--royal-blue));
+    color: white;
+    overflow: hidden;
+}
+
+@media (min-width: 992px) {
+    .auth-left {
+        display: flex;
+        flex: 0 0 45%;
+        /* takes 45% width on desktop */
+    }
+}
+
+.auth-left::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.1) 0%, transparent 60%),
+        radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.05) 0%, transparent 50%);
+    animation: slowSpin 60s linear infinite;
+    z-index: 0;
+}
+
+.auth-background-decoration {
+    position: absolute;
+    bottom: -100px;
+    right: -100px;
+    width: 400px;
+    height: 400px;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.08) 0%, transparent 70%);
+    border-radius: 50%;
+    z-index: 0;
+}
+
+.auth-left-content {
+    position: relative;
+    z-index: 1;
+    max-width: 500px;
+}
+
+.brand-logo-large {
+    height: 60px;
+    filter: brightness(0) invert(1);
+    /* Make it white */
+}
+
+.hero-title {
+    font-size: 3rem;
+    font-weight: 800;
+    line-height: 1.2;
+    margin-bottom: 1.5rem;
+    letter-spacing: -0.02em;
+}
+
+.hero-subtitle {
+    font-size: 1.1rem;
+    line-height: 1.6;
+    opacity: 0.9;
+    font-weight: 300;
+}
+
+/* --- Right Section (Form) --- */
+.auth-right {
+    flex: 1;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, var(--blue-100) 0%, white 100%);
-    padding: var(--space-xl);
+    padding: 2rem;
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+    position: relative;
+    overflow: hidden;
 }
 
-html.dark .auth-container {
-    background: #000000 !important;
+.auth-right::before {
+    content: '';
+    position: absolute;
+    top: 5%;
+    right: 5%;
+    width: 400px;
+    height: 400px;
+    background: radial-gradient(circle, rgba(59, 130, 246, 0.12) 0%, transparent 70%);
+    border-radius: 50%;
+    z-index: 0;
+    filter: blur(40px);
+}
+
+.auth-right::after {
+    content: '';
+    position: absolute;
+    bottom: 5%;
+    left: 5%;
+    width: 350px;
+    height: 350px;
+    background: radial-gradient(circle, rgba(14, 165, 233, 0.1) 0%, transparent 70%);
+    border-radius: 50%;
+    z-index: 0;
+    filter: blur(40px);
+}
+
+html.dark .auth-right {
+    background: linear-gradient(135deg, #0f172a 0%, #020617 100%);
+}
+
+html.dark .auth-right::before {
+    background: radial-gradient(circle, rgba(59, 130, 246, 0.08) 0%, transparent 70%);
+}
+
+html.dark .auth-right::after {
+    background: radial-gradient(circle, rgba(14, 165, 233, 0.05) 0%, transparent 70%);
 }
 
 .auth-box {
-    background: var(--glass-bg);
-    backdrop-filter: blur(40px) saturate(180%);
-    padding: var(--space-2xl);
-    border-radius: var(--radius-2xl);
-    box-shadow: var(--shadow-xl);
-    max-width: 450px;
     width: 100%;
+    max-width: 540px;
+    background: var(--glass-bg);
+    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
+    padding: 3rem;
+    border-radius: 24px;
     border: 1px solid var(--glass-border);
+    box-shadow: var(--shadow-xl);
     transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    z-index: 1;
+}
+
+.mobile-brand-logo {
+    height: 48px;
+}
+
+.mobile-brand-title {
+    color: var(--royal-blue);
+}
+
+html.dark .auth-box {
+    background: var(--card-bg);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
 }
 
 .auth-box.reveal {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(30px) scale(0.98);
 }
 
 .auth-box.reveal.active {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
+}
+
+@keyframes slowSpin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 .slide-in-right {
@@ -751,34 +912,197 @@ html.dark .auth-container {
 }
 
 .auth-logo-img-large {
-    height: 120px;
+    height: 90px;
     width: auto;
     filter: drop-shadow(0 0 15px rgba(30, 144, 255, 0.4));
+    margin-bottom: 1.5rem;
+}
+
+.auth-header {
+    text-align: center;
     margin-bottom: 2rem;
 }
 
-.glass-input {
-    background: rgba(0, 0, 0, 0.05) !important;
-    border: 1px solid rgba(7, 68, 143, 0.46) !important;
-    border-radius: 12px !important;
-    color: #1e293b !important;
-    padding: 12px 16px !important;
-    width: 100%;
-    transition: var(--transition-base);
+.auth-header h2 {
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--gray-900);
+    margin-bottom: 0.5rem;
+    letter-spacing: -0.02em;
 }
 
-html.dark .glass-input {
-    background: rgba(255, 255, 255, 0.05) !important;
+.auth-header p {
+    color: var(--gray-500);
+    font-size: 1rem;
+}
+
+html.dark .auth-header h2 {
+    color: white;
+}
+
+html.dark .auth-header p {
+    color: var(--gray-400);
+}
+
+.glass-btn-google {
+    background: white;
+    color: var(--gray-800);
+    border: 1px solid var(--gray-200);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 1rem;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    text-decoration: none;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    padding: 14px !important;
+    width: 100% !important;
+}
+
+.glass-btn-google:hover {
+    background: #f8fafc;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.08);
+    color: var(--gray-900);
+}
+
+html.dark .glass-btn-google {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+html.dark .glass-btn-google:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.social-auth-separator {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    margin: 2rem 0;
+    color: var(--gray-400);
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+}
+
+.social-auth-separator::before,
+.social-auth-separator::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid var(--gray-200);
+}
+
+html.dark .social-auth-separator::before,
+html.dark .social-auth-separator::after {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.social-auth-separator span {
+    padding: 0 10px;
+}
+
+.modern-form .form-group {
+    margin-bottom: 1.25rem;
+}
+
+.modern-form label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--gray-700);
+    margin-bottom: 0.4rem;
+}
+
+html.dark .modern-form label {
+    color: var(--gray-300);
+}
+
+.glass-input.modern-input {
+    background: var(--gray-50) !important;
+    border: 1px solid var(--gray-200) !important;
+    padding: 14px 16px !important;
+    border-radius: 12px !important;
+    font-size: 1rem;
+    color: var(--gray-900) !important;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    width: 100%;
+}
+
+.glass-input.modern-input:focus {
+    background: white !important;
+    border-color: var(--blue-500) !important;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15) !important;
+    transform: translateY(-1px);
+}
+
+html.dark .glass-input.modern-input {
+    background: var(--gray-800) !important;
+    border-color: var(--gray-700) !important;
     color: white !important;
 }
 
-.glass-input:focus,
-.scanner-box input:focus {
-    outline: none;
-    border-color: var(--royal-blue);
-    background: rgba(255, 255, 255, 0.15);
-    box-shadow: 0 0 25px rgba(37, 99, 235, 0.3), inset 0 0 10px rgba(255, 255, 255, 0.1);
-    transform: scale(1.01);
+html.dark .glass-input.modern-input:focus {
+    background: var(--gray-900) !important;
+    border-color: var(--blue-500) !important;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.25) !important;
+}
+
+.btn-auth {
+    padding: 14px;
+    font-size: 1rem;
+    font-weight: 600;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--blue-600), var(--blue-700));
+    color: white;
+    border: none;
+    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3);
+    transition: all 0.3s ease;
+}
+
+.btn-auth:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
+    background: linear-gradient(135deg, var(--blue-500), var(--blue-600));
+}
+
+.btn-auth:active {
+    transform: translateY(0);
+}
+
+.slide-in-bottom {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.slide-in-bottom.active {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.delay-1 {
+    transition-delay: 0.1s;
+}
+
+.delay-2 {
+    transition-delay: 0.2s;
+}
+
+.delay-3 {
+    transition-delay: 0.3s;
+}
+
+.delay-4 {
+    transition-delay: 0.4s;
+}
+
+.delay-5 {
+    transition-delay: 0.5s;
 }
 
 .full-height {
@@ -800,6 +1124,37 @@ html.dark .glass-input {
     transform: translateY(-50%);
     cursor: pointer;
     color: var(--gray-400);
+}
+
+.hover-underline {
+    position: relative;
+    text-decoration: none;
+    color: var(--blue-600);
+    font-weight: 600;
+}
+
+.hover-underline::after {
+    content: '';
+    position: absolute;
+    width: 100%;
+    transform: scaleX(0);
+    height: 2px;
+    bottom: -2px;
+    left: 0;
+    background-color: var(--blue-600);
+    transform-origin: bottom right;
+    transition: transform 0.25s ease-out;
+}
+
+.hover-underline:hover::after {
+    transform: scaleX(1);
+    transform-origin: bottom left;
+}
+
+html.dark .hover-underline,
+html.dark .hover-underline::after {
+    color: var(--blue-400);
+    background-color: var(--blue-400);
 }
 
 .small-link {
