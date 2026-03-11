@@ -22,6 +22,8 @@ def upgrade():
     tables = inspector.get_table_names()
     
     if 'user' in tables and 'users' not in tables:
+        # Standardize: check if we need to drop indexes or constraints before rename if necessary
+        # but for this app a simple rename is usually fine on PostgreSQL/SQLite
         op.rename_table('user', 'users')
     
     # Update ForeignKeys on other tables
