@@ -37,17 +37,16 @@ def upgrade():
         except Exception:
             pass
 
-    # Handle the sale_item.sale_id addition if it was missed or incorrectly handled
+    # Handle the sale_id addition safely
+    inspector = sa.inspect(bind)
+    columns = [c['name'] for c in inspector.get_columns('sale_item')]
+    
     with op.batch_alter_table('sale_item', schema=None) as batch_op:
-        try:
+        if 'sale_id' not in columns:
             batch_op.add_column(sa.Column('sale_id', sa.Integer(), nullable=True))
-        except Exception:
-            pass
             
-        try:
-            batch_op.create_foreign_key('fk_sale_item_sale_id', 'sale', ['sale_id'], ['id'])
-        except Exception:
-            pass 
+        # Ensure foreign key is set
+        batch_op.create_foreign_key('fk_sale_item_sale_id', 'sale', ['sale_id'], ['id'])
 
 def downgrade():
     with op.batch_alter_table('sale_item', schema=None) as batch_op:
