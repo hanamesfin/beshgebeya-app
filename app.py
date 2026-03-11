@@ -21,7 +21,7 @@ from flask_migrate import Migrate
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.routing import BuildError
 from werkzeug.middleware.proxy_fix import ProxyFix
-from authlib.integrations.flask_client import OAuth
+from auth import auth_bp, oauth
 import click
 # =====================
 # CREATE APP
@@ -30,13 +30,16 @@ app = Flask(__name__)
 # Tell Flask it is behind a proxy so url_for(_external=True) uses https
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
-app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "super-secret-key")
+app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "fallback-secret-key")
 
 # Secure cookies for OAuth CSRF
 is_production = os.environ.get('FLASK_ENV') == 'production' or os.environ.get('RENDER') == 'true'
 if is_production:
-    app.config['SESSION_COOKIE_SECURE'] = True
-    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+    app.config.update(
+        SESSION_COOKIE_SECURE=True,
+        SESSION_COOKIE_SAMESITE="None",
+        SESSION_COOKIE_HTTPONLY=True
+    )
     # Ensure Authlib doesn't allow insecure transport in production
     os.environ['AUTHLIB_INSECURE_TRANSPORT'] = 'false'
 else:
@@ -66,16 +69,11 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 # =====================
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
-oauth = OAuth(app)
-
-# --- GOOGLE OAUTH CONFIG ---
-google = oauth.register(
-    name='google',
-    client_id=os.environ.get('GOOGLE_CLIENT_ID'),
-    client_secret=os.environ.get('GOOGLE_CLIENT_SECRET'),
-    server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
-    client_kwargs={'scope': 'openid email profile'}
-)
+# =====================
+# INITIALIZE OAUTH
+# =====================
+oauth.init_app(app)
+app.register_blueprint(auth_bp)
 
 # =====================
 # MODELS
@@ -517,102 +515,7 @@ def update_role(user_id):
     flash(f'Role for {user.username} updated to {new_role}!', 'success')
     return redirect(url_for('admin_panel'))
 
-@app.route('/login/google')
-def login_google():
-    client_id = os.environ.get('GOOGLE_CLIENT_ID')
-    if not client_id:
-        flash('Google Client ID not configured. Please add it to your .env file.', 'error')
-        return redirect(url_for('login'))
-    if not os.environ.get('GOOGLE_CLIENT_SECRET'):
-        flash('Google Client Secret not configured. Please add it to your .env file.', 'error')
-        return redirect(url_for('login'))
-    
-    # Diagnostic Logging
-    masked_id = f"{client_id[:5]}...{client_id[-5:]}" if client_id else "None"
-    redirect_uri = url_for('auth_callback', provider='google', _external=True)
-    app.logger.info(f"[OAuth] Initiating Google login. Client ID: {masked_id}, Redirect URI: {redirect_uri}")
-
-    return google.authorize_redirect(redirect_uri)
-
-@app.route('/auth/<provider>/callback')
-def auth_callback(provider):
-    try:
-        if provider == 'google':
-            if not os.environ.get('GOOGLE_CLIENT_SECRET'):
-                flash('Google Client Secret is missing. Please check your .env file.', 'error')
-                return redirect(url_for('login'))
-            token = google.authorize_access_token()
-            user_info = token.get('userinfo')
-            social_id = user_info.get('sub')
-            email = user_info.get('email')
-            name = user_info.get('name')
-            id_field = 'google_id'
-        else:
-            flash('Invalid provider', 'error')
-            return redirect(url_for('login'))
-    except Exception as e:
-        import traceback
-        app.logger.error(f"[OAuth] Error in {provider} callback: {str(e)}")
-        app.logger.error(traceback.format_exc())
-        flash(f'Authentication error: {str(e)}', 'error')
-        return redirect(url_for('login'))
-
-    if not social_id:
-        flash(f'Failed to get user info from {provider}', 'error')
-        return redirect(url_for('login'))
-
-    # Check if user already linked
-    user = User.query.filter(getattr(User, id_field) == social_id).first()
-    
-    if not user and email:
-        # Check if user exists by email but not linked
-        user = User.query.filter_by(email=email).first()
-        if user:
-            # Link it
-            setattr(user, id_field, social_id)
-            db.session.commit()
-    
-    if not user:
-        # Create new user
-        # Avoid username collision
-        base_username = email.split('@')[0] if email else f"{provider}_{social_id[:8]}"
-        username = base_username
-        count = 1
-        while User.query.filter_by(username=username).first():
-            username = f"{base_username}_{count}"
-            count += 1
-            
-        branch = Branch.query.first()
-        user = User(
-            username=username,
-            email=email,
-            name=name or username,
-            branch_id=branch.id if branch else 1,
-            is_admin=(User.query.count() == 0)
-        )
-        setattr(user, id_field, social_id)
-        db.session.add(user)
-        db.session.commit()
-
-    if user.is_denied:
-        flash('Your account has been denied access by an administrator.', 'error')
-        return redirect(url_for('login'))
-
-    if not user.is_approved:
-        flash('Your account is awaiting admin approval.', 'warning')
-        return redirect(url_for('login'))
-
-    # Log user in
-    session['user_id'] = user.id
-    session['username'] = user.username
-    session['is_admin'] = user.is_admin
-    flash(f'Successfully logged in with {provider.capitalize()}!', 'success')
-    
-    landing_page = getattr(user, 'landing_page', None) or 'dashboard'
-    try:
-        return redirect(url_for(landing_page))
-    except BuildError:
-        return redirect(url_for('dashboard'))
+# Google OAuth handled in auth.py
 
 @app.route('/settings')
 @login_required
