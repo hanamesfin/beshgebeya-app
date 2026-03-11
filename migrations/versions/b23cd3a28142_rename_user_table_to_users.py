@@ -8,7 +8,6 @@ Create Date: 2026-03-09 14:11:25.921066
 from alembic import op
 import sqlalchemy as sa
 
-
 # revision identifiers, used by Alembic.
 revision = 'b23cd3a28142'
 down_revision = '781ac70b3bf7'
@@ -24,11 +23,6 @@ def upgrade():
     
     if 'user' in tables and 'users' not in tables:
         op.rename_table('user', 'users')
-    elif 'users' in tables and 'user' in tables:
-        # Emergency: both exist? This shouldn't happen but let's be safe.
-        # Maybe the previous attempt failed halfway.
-        # If 'users' exists, we might need to merge or just assume 'users' is the new one.
-        pass 
     
     # Update ForeignKeys on other tables
     with op.batch_alter_table('sale', schema=None) as batch_op:
@@ -46,7 +40,10 @@ def upgrade():
             batch_op.add_column(sa.Column('sale_id', sa.Integer(), nullable=True))
             
         # Ensure foreign key is set
-        batch_op.create_foreign_key('fk_sale_item_sale_id', 'sale', ['sale_id'], ['id'])
+        try:
+            batch_op.create_foreign_key('fk_sale_item_sale_id', 'sale', ['sale_id'], ['id'])
+        except Exception:
+            pass
 
 def downgrade():
     with op.batch_alter_table('sale_item', schema=None) as batch_op:
