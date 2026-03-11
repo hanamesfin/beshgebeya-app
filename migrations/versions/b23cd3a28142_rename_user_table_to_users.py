@@ -7,6 +7,7 @@ Create Date: 2026-03-09 14:11:25.921066
 """
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.engine.reflection import Inspector
 
 # revision identifiers, used by Alembic.
 revision = 'b23cd3a28142'
@@ -18,34 +19,35 @@ depends_on = None
 def upgrade():
     # Defensive check: only rename if 'user' exists and 'users' does not
     bind = op.get_bind()
-    inspector = sa.inspect(bind)
+    inspector = Inspector.from_engine(bind)
     tables = inspector.get_table_names()
     
     if 'user' in tables and 'users' not in tables:
-        # Standardize: check if we need to drop indexes or constraints before rename if necessary
-        # but for this app a simple rename is usually fine on PostgreSQL/SQLite
         op.rename_table('user', 'users')
     
-    # Update ForeignKeys on other tables
-    with op.batch_alter_table('sale', schema=None) as batch_op:
-        try:
-            batch_op.create_foreign_key('fk_sales_user_id', 'users', ['user_id'], ['id'])
-        except Exception:
-            pass
+    # Update ForeignKeys on 'sale' table
+    fks_sale = [fk['name'] for fk in inspector.get_foreign_keys('sale')]
+    if 'fk_sales_user_id' not in fks_sale:
+        with op.batch_alter_table('sale', schema=None) as batch_op:
+            try:
+                batch_op.create_foreign_key('fk_sales_user_id', 'users', ['user_id'], ['id'])
+            except Exception:
+                pass
 
-    # Handle the sale_id addition safely
-    inspector = sa.inspect(bind)
-    columns = [c['name'] for c in inspector.get_columns('sale_item')]
+    # Handle the sale_id addition and foreign key safety check on 'sale_item'
+    columns_sale_item = [c['name'] for c in inspector.get_columns('sale_item')]
+    fks_sale_item = [fk['name'] for fk in inspector.get_foreign_keys('sale_item')]
     
     with op.batch_alter_table('sale_item', schema=None) as batch_op:
-        if 'sale_id' not in columns:
+        if 'sale_id' not in columns_sale_item:
             batch_op.add_column(sa.Column('sale_id', sa.Integer(), nullable=True))
             
-        # Ensure foreign key is set
-        try:
-            batch_op.create_foreign_key('fk_sale_item_sale_id', 'sale', ['sale_id'], ['id'])
-        except Exception:
-            pass
+        # Ensure foreign key is set only if it doesn't exist
+        if 'fk_sale_item_sale_id' not in fks_sale_item:
+            try:
+                batch_op.create_foreign_key('fk_sale_item_sale_id', 'sale', ['sale_id'], ['id'])
+            except Exception:
+                pass
 
 def downgrade():
     with op.batch_alter_table('sale_item', schema=None) as batch_op:
