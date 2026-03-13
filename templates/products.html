@@ -71,8 +71,26 @@
                         </div>
                     </div>
                     <div class="form-group">
-                        <label>Category</label>
-                        <input type="text" name="category" placeholder="e.g., Vegetables, Fruits">
+                        <label>Category *</label>
+                        <select name="category_id" required>
+                            <option value="">Select Category</option>
+                            {% for cat in categories %}
+                            <option value="{{ cat.id }}">{{ cat.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Location (Branch)</label>
+                        <select name="branch_id">
+                            <option value="">Select Branch</option>
+                            {% for branch in branches %}
+                            <option value="{{ branch.id }}">{{ branch.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Unit Price ($)</label>
+                        <input type="number" step="0.01" name="unit_price" placeholder="e.g., 10.50">
                     </div>
                     <div class="form-group">
                         <label>Brand</label>
@@ -90,8 +108,12 @@
 
                 <div class="form-grid" style="margin-top: 20px;">
                     <div class="form-group">
+                        <label>Current Quantity</label>
+                        <input type="number" step="0.1" name="quantity" placeholder="e.g., 100">
+                    </div>
+                    <div class="form-group">
                         <label>Size Value</label>
-                        <input type="number" step="0.01" name="size_value" placeholder="e.g., 1, 500">
+                        <input type="number" step="0.1" name="size_value" placeholder="e.g., 1, 500">
                     </div>
                     <div class="form-group">
                         <label>Size Unit</label>
@@ -108,7 +130,7 @@
                 </div>
                 <div class="form-group">
                     <label>Description</label>
-                    <textarea name="description" rows="3" placeholder="Product description..."></textarea>
+                    <textarea name="description" rows="2" placeholder="Product description..."></textarea>
                 </div>
                 <div class="form-actions">
                     <button type="submit" class="btn-primary" id="submit-btn">Create Product</button>
@@ -121,17 +143,46 @@
     <!-- Persistent Sticky Search -->
     <div class="sticky-search-container">
         <div class="crystal-card"
-            style="padding: 15px 20px; display: flex; align-items: center; gap: 15px; margin-bottom: 20px; border-radius: var(--radius-full);">
-            <span class="blue-emoji" style="font-size: 1.5rem;">🔍</span>
-            <input type="text" id="search-input" name="q" placeholder="Search by name, category, or scan..."
-                hx-get="/api/search/products" hx-trigger="keyup changed delay:300ms, search"
-                hx-target="#product-table-body" hx-swap="innerHTML transition:true"
-                data-en="Search by name, category, or scan..." data-am="በስም ፣ በዘርፍ ወይም በስካን ይፈልጉ..."
-                style="flex: 1; border: none; background: transparent; font-size: 1.1rem; padding: 10px; outline: none;">
-            <button id="start-camera-btn" onclick="startCamera()" class="icon-btn-blue" title="Camera Scanner"
-                style="border-radius: var(--radius-full); width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;">
-                <span class="blue-emoji">📷</span>
-            </button>
+            style="padding: 15px 20px; display: flex; align-items: center; gap: 15px; margin-bottom: 20px; border-radius: var(--radius-full); flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 10px; flex: 1; min-width: 300px;">
+                <span class="blue-emoji" style="font-size: 1.5rem;">🔍</span>
+                <input type="text" id="search-input" name="q" placeholder="Search by name, SKU, or scan..."
+                    hx-get="/api/search/products" 
+                    hx-include="#category-filter, #branch-filter"
+                    hx-trigger="keyup changed delay:300ms, search"
+                    hx-target="#product-table-body" hx-swap="innerHTML transition:true"
+                    data-en="Search by name, SKU, or scan..." data-am="በስም ፣ በSKU ወይም በስካን ይፈልጉ..."
+                    style="flex: 1; border: none; background: transparent; font-size: 1.1rem; padding: 10px; outline: none;">
+            </div>
+            
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <select id="category-filter" name="category_id" 
+                        hx-get="/api/search/products" 
+                        hx-include="#search-input, #branch-filter"
+                        hx-target="#product-table-body"
+                        style="padding: 8px 15px; border-radius: var(--radius-full); border: 1px solid var(--gray-200); background: var(--glass-bg); outline: none;">
+                    <option value="">All Categories</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat.id }}">{{ cat.name }}</option>
+                    {% endfor %}
+                </select>
+
+                <select id="branch-filter" name="branch_id" 
+                        hx-get="/api/search/products" 
+                        hx-include="#search-input, #category-filter"
+                        hx-target="#product-table-body"
+                        style="padding: 8px 15px; border-radius: var(--radius-full); border: 1px solid var(--gray-200); background: var(--glass-bg); outline: none;">
+                    <option value="">All Locations</option>
+                    {% for branch in branches %}
+                    <option value="{{ branch.id }}">{{ branch.name }}</option>
+                    {% endfor %}
+                </select>
+
+                <button id="start-camera-btn" onclick="startCamera()" class="icon-btn-blue" title="Camera Scanner"
+                    style="border-radius: var(--radius-full); width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;">
+                    <span class="blue-emoji">📷</span>
+                </button>
+            </div>
         </div>
         <div id="reader"
             style="width: 100%; max-width: 500px; margin: 0 auto; border-radius: 12px; overflow: hidden; display: none;">
@@ -157,13 +208,14 @@
                 <table class="data-table">
                     <thead>
                         <tr>
-                            <th style="width: 25%;" data-en="Product" data-am="ምርት">Product</th>
-                            <th style="width: 15%;" data-en="Category / Brand" data-am="ምድብ / ብራንድ">Category / Brand
-                            </th>
+                            <th style="width: 20%;" data-en="Product" data-am="ምርት">Product</th>
+                            <th style="width: 15%;" data-en="Category / Brand" data-am="ምድብ / ብራንድ">Category / Brand</th>
                             <th style="width: 15%;" data-en="Barcode / SKU" data-am="ባርኮድ / SKU">Barcode / SKU</th>
                             <th style="width: 15%;" data-en="Size / Pack" data-am="መጠን / ጥቅል">Size / Pack</th>
-                            <th style="width: 20%;" data-en="Description" data-am="መግለጫ">Description</th>
-                            <th style="width: 10%;" data-en="Actions" data-am="ድርጊቶች">Actions</th>
+                            <th style="width: 10%;" data-en="Price" data-am="ዋጋ">Price</th>
+                            <th style="width: 10%;" data-en="Qty" data-am="ብዛት">Qty</th>
+                            <th style="width: 10%;" data-en="Value" data-am="ጠቅላላ ዋጋ">Value</th>
+                            <th style="width: 5%;" data-en="Actions" data-am="ድርጊቶች">Actions</th>
                         </tr>
                     </thead>
                     <tbody id="product-table-body">
@@ -301,10 +353,13 @@
                             form.sku.value = p.sku || '';
                             form.local_code.value = p.local_code || '';
                             form.barcode.value = p.barcode || '';
-                            form.category.value = p.category || '';
+                            form.category_id.value = p.category_id || '';
+                            form.branch_id.value = p.branch_id || '';
+                            form.unit_price.value = p.unit_price || '';
                             form.brand.value = p.brand || '';
                             form.supplier.value = p.supplier || '';
                             form.internal_code.value = p.internal_code || '';
+                            form.quantity.value = p.quantity || '';
                             form.size_value.value = p.size_value || '';
                             form.size_unit.value = p.size_unit || '';
                             form.pack_quantity.value = p.pack_quantity || '';
@@ -335,7 +390,10 @@
                     sku: form.sku.value,
                     local_code: form.local_code.value,
                     barcode: form.barcode.value,
-                    category: form.category.value,
+                    category_id: form.category_id.value ? parseInt(form.category_id.value) : null,
+                    branch_id: form.branch_id.value ? parseInt(form.branch_id.value) : null,
+                    unit_price: form.unit_price.value ? parseFloat(form.unit_price.value) : 0,
+                    quantity: form.quantity.value ? parseFloat(form.quantity.value) : 0,
                     brand: form.brand.value,
                     supplier: form.supplier.value,
                     internal_code: form.internal_code.value,

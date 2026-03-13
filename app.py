@@ -18,6 +18,8 @@ from functools import wraps
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session, send_file
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
+from database import db
+from models import Branch, User, Category, Product, Inventory, Sale, SaleItem, Alert, ImportLog
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.routing import BuildError
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -27,14 +29,14 @@ import click
 # CREATE APP
 # =====================
 app = Flask(__name__)
-# Tell Flask it is behind a proxy so url_for(_external=True) uses https
-app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
-
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "fallback-secret-key")
 
 # Secure cookies for OAuth CSRF
 is_production = os.environ.get('FLASK_ENV') == 'production' or os.environ.get('RENDER') == 'true'
 if is_production:
+    # Tell Flask it is behind a proxy so url_for(_external=True) uses https
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+    
     app.config.update(
         SESSION_COOKIE_SECURE=True,
         SESSION_COOKIE_SAMESITE="None",
@@ -67,7 +69,7 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 # =====================
 # INITIALIZE DB
 # =====================
-db = SQLAlchemy(app)
+db.init_app(app)
 migrate = Migrate(app, db)
 # =====================
 # INITIALIZE OAUTH
@@ -75,143 +77,6 @@ migrate = Migrate(app, db)
 oauth.init_app(app)
 app.register_blueprint(auth_bp)
 
-# =====================
-# MODELS
-# =====================
-class Branch(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    location = db.Column(db.String(200), nullable=False)
-    phone = db.Column(db.String(20), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-    users = db.relationship('User', backref='branch', lazy=True)
-    inventory = db.relationship('Inventory', backref='branch', lazy=True)
-
-
-class User(db.Model):
-    __tablename__ = 'users'
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False)
-    email = db.Column(db.String(120), unique=True, nullable=True)
-    phone_number = db.Column(db.String(20), unique=True, nullable=True)
-    password_hash = db.Column(db.String(200), nullable=True) # Nullable for social users
-    name = db.Column(db.String(100))
-    
-    # User Preferences
-    chart_style = db.Column(db.String(20), default='glass')
-    landing_page = db.Column(db.String(20), default='dashboard')
-    
-    # Social Login IDs
-    google_id = db.Column(db.String(100), unique=True, nullable=True)
-    apple_id = db.Column(db.String(100), unique=True, nullable=True)
-    
-    is_admin = db.Column(db.Boolean, default=False)
-    is_approved = db.Column(db.Boolean, default=False)
-    is_denied = db.Column(db.Boolean, default=False)
-    
-    # Password Reset
-    reset_token = db.Column(db.String(100), unique=True, nullable=True)
-    reset_token_expiry = db.Column(db.DateTime, nullable=True)
-    
-    branch_id = db.Column(db.Integer, db.ForeignKey('branch.id'))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-
-class Product(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(255), nullable=True)
-    local_name = db.Column(db.String(255))
-    description = db.Column(db.Text)
-    
-    sku = db.Column(db.String(100), unique=True, index=True)
-    local_code = db.Column(db.String(100), unique=True, index=True)
-    internal_code = db.Column(db.String(100))
-    barcode = db.Column(db.String(100), unique=True, index=True)
-    
-    # Size Info (e.g., 1 Lit)
-    size_value = db.Column(db.Float)
-    size_unit = db.Column(db.String(20))
-    
-    # Pack Info (e.g., 12 Pcs)
-    pack_quantity = db.Column(db.Integer)
-    pack_unit = db.Column(db.String(20))
-    
-    category = db.Column(db.String(100), nullable=True)
-    brand = db.Column(db.String(100))
-    supplier = db.Column(db.String(100))
-    
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    inventory = db.relationship('Inventory', backref='product', lazy=True)
-    sale_items = db.relationship('SaleItem', backref='product', lazy=True)
-
-
-class Inventory(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=True)
-    branch_id = db.Column(db.Integer, db.ForeignKey('branch.id'), nullable=True)
-    
-    quantity_on_hand = db.Column(db.Float, nullable=True, default=0.0)
-    unit_of_measure = db.Column(db.String(20)) # Pcs, Box, Carton
-    
-    threshold_min = db.Column(db.Integer, default=10)
-    unit_size = db.Column(db.Float)
-    unit_measure = db.Column(db.String(20))
-    pack_qty = db.Column(db.Integer, default=1)
-    pack_unit = db.Column(db.String(20), default='Pcs')
-    extra_info = db.Column(db.String(255))
-    
-    expiry_date = db.Column(db.DateTime)
-    entry_date = db.Column(db.DateTime, default=datetime.utcnow)
-    batch_number = db.Column(db.String(50))
-    status = db.Column(db.String(20), default='AVAILABLE')
-    last_updated = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-
-class Sale(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
-    branch_id = db.Column(db.Integer, db.ForeignKey('branch.id'), nullable=True)
-    total_amount = db.Column(db.Float, nullable=False)
-    payment_type = db.Column(db.String(20), default='CASH') # CASH, CARD, MOBILE
-    sale_date = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    items = db.relationship('SaleItem', backref='sale', lazy=True)
-    user = db.relationship('User', backref='sales', lazy=True)
-    branch = db.relationship('Branch', backref='sales', lazy=True)
-
-
-class SaleItem(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    sale_id = db.Column(db.Integer, db.ForeignKey('sale.id'), nullable=True)
-    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
-    quantity = db.Column(db.Integer, nullable=False)
-    price = db.Column(db.Float, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-
-class Alert(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    type = db.Column(db.String(20), nullable=False)
-    message = db.Column(db.Text, nullable=False)
-    product_id = db.Column(db.Integer)
-    branch_id = db.Column(db.Integer)
-    quantity = db.Column(db.Integer)
-    days_until_expiry = db.Column(db.Integer)
-    is_read = db.Column(db.Boolean, default=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-class ImportLog(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    filename = db.Column(db.String(255))
-    import_type = db.Column(db.String(50)) # 'FILE' or 'GOOGLE_SHEET'
-    added_count = db.Column(db.Integer, default=0)
-    merged_count = db.Column(db.Integer, default=0)
-    failed_count = db.Column(db.Integer, default=0)
-    log_filename = db.Column(db.String(255))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 # =====================
 # DATABASE INITIALIZATION
@@ -247,6 +112,13 @@ def initialize_database(app: Flask):
             db.session.commit()
             print("[DB INIT] Default admin user created")
             
+        # Seed Categories safely
+        default_categories = ["Food", "Commodities", "Home Care", "Personal Care"]
+        for cat_name in default_categories:
+            if not Category.query.filter_by(name=cat_name).first():
+                db.session.add(Category(name=cat_name))
+        db.session.commit()
+
         # Ensure all existing users are approved during this transition (optional but helpful)
         unapproved_users = User.query.filter_by(is_approved=None).all()
         if unapproved_users:
@@ -573,9 +445,12 @@ def update_profile():
 @login_required
 def search_products_htmx():
     query = request.args.get('q', '').strip()
-    if not query:
-        products = Product.query.order_by(Product.id.desc()).limit(100).all()
-    else:
+    category_id = request.args.get('category_id', type=int)
+    branch_id = request.args.get('branch_id', type=int)
+    
+    products_query = Product.query
+    
+    if query:
         search_filter = db.or_(
             Product.name.ilike(f'%{query}%'),
             Product.local_name.ilike(f'%{query}%'),
@@ -584,20 +459,27 @@ def search_products_htmx():
             Product.category.ilike(f'%{query}%'),
             Product.brand.ilike(f'%{query}%')
         )
-        products = Product.query.filter(search_filter).order_by(Product.id.desc()).all()
+        products_query = products_query.filter(search_filter)
     
+    if category_id:
+        products_query = products_query.filter(Product.category_id == category_id)
+    if branch_id:
+        products_query = products_query.filter(Product.branch_id == branch_id)
+        
+    products = products_query.order_by(Product.id.desc()).all()
     return render_template('partials/product_table_rows.html', products=products)
 
 @app.route('/api/search/inventory')
 @login_required
 def search_inventory_htmx():
     query = request.args.get('q', '').strip()
+    category_id = request.args.get('category_id', type=int)
+    branch_id = request.args.get('branch_id', type=int)
     today = datetime.utcnow()
     
-    if not query:
-        inventory = Inventory.query.order_by(Inventory.id.desc()).limit(100).all()
-    else:
-        # Search in product names and codes
+    inventory_query = Inventory.query.join(Product)
+    
+    if query:
         search_filter = db.or_(
             Product.name.ilike(f'%{query}%'),
             Product.local_name.ilike(f'%{query}%'),
@@ -606,13 +488,28 @@ def search_inventory_htmx():
             Inventory.batch_number.ilike(f'%{query}%'),
             Inventory.extra_info.ilike(f'%{query}%')
         )
-        inventory = Inventory.query.join(Product).filter(search_filter).order_by(Inventory.id.desc()).all()
+        inventory_query = inventory_query.filter(search_filter)
     
+    if category_id:
+        inventory_query = inventory_query.filter(Product.category_id == category_id)
+    if branch_id:
+        inventory_query = inventory_query.filter(Inventory.branch_id == branch_id)
+        
+    inventory = inventory_query.order_by(Inventory.id.desc()).all()
     return render_template('partials/inventory_table_rows.html', inventory=inventory, now=today)
 
 @app.route('/help')
 def help_page():
     return render_template('help.html')
+
+@app.route('/delete_inventory/<int:id>', methods=['POST'])
+@login_required
+def delete_inventory_form(id):
+    item = Inventory.query.get_or_404(id)
+    db.session.delete(item)
+    db.session.commit()
+    flash("Item deleted successfully", "success")
+    return redirect(url_for('dashboard'))
 
 @app.route('/')
 @login_required
@@ -671,12 +568,20 @@ def dashboard():
 
     user = User.query.get(session['user_id'])
 
+    # Slow Moving Products (6+ Months)
+    six_months_ago = today - timedelta(days=180)
+    slow_moving = Inventory.query.filter(
+        Inventory.entry_date <= six_months_ago,
+        Inventory.quantity_on_hand > 0
+    ).order_by(Inventory.entry_date).all()
+
     return render_template(
         'dashboard.html',
         user=user,
         alerts=alerts,
         expiring_0_90=expiring_0_90,
         expiring_180=expiring_180,
+        slow_moving=slow_moving,
         now=today,
         # FEFO Metrics
         expiry_labels=expiry_labels,
@@ -752,7 +657,10 @@ def products():
                 size_unit=size_unit,
                 pack_quantity=pack_qty,
                 pack_unit=pack_unit,
-                category=request.form.get('category'),
+                category_id=int(request.form.get('category_id')) if request.form.get('category_id') else None,
+                branch_id=int(request.form.get('branch_id')) if request.form.get('branch_id') else None,
+                unit_price=float(request.form.get('unit_price')) if request.form.get('unit_price') else 0.0,
+                quantity=float(request.form.get('quantity')) if request.form.get('quantity') else 0.0,
                 brand=request.form.get('brand', ''),
                 supplier=request.form.get('supplier', '')
             )
@@ -764,7 +672,9 @@ def products():
         return redirect(url_for('products'))
     
     products_list = Product.query.order_by(Product.id.desc()).limit(100).all()
-    return render_template('products.html', products=products_list)
+    categories = Category.query.all()
+    branches = Branch.query.all()
+    return render_template('products.html', products=products_list, categories=categories, branches=branches)
 
 @app.route('/inventory', methods=['GET', 'POST'])
 @login_required
@@ -1375,7 +1285,7 @@ def update_inventory(inventory_id):
 
 @app.route('/api/inventory/<int:inventory_id>', methods=['DELETE'])
 @login_required
-def delete_inventory(inventory_id):
+def delete_inventory_api(inventory_id):
     """Delete an inventory record via API"""
     try:
         inv = Inventory.query.get_or_404(inventory_id)
@@ -1406,7 +1316,10 @@ def update_product(product_id):
         if 'barcode' in data: product.barcode = sanitize_unique_field(data['barcode'])
         if 'local_code' in data: product.local_code = sanitize_unique_field(data['local_code'])
         if 'internal_code' in data: product.internal_code = data['internal_code']
-        if 'category' in data: product.category = data['category']
+        if 'category_id' in data: product.category_id = int(data['category_id']) if data['category_id'] else None
+        if 'branch_id' in data: product.branch_id = int(data['branch_id']) if data['branch_id'] else None
+        if 'unit_price' in data: product.unit_price = float(data['unit_price']) if data['unit_price'] else 0.0
+        if 'quantity' in data: product.quantity = float(data['quantity']) if data['quantity'] else 0.0
         if 'brand' in data: product.brand = data['brand']
         if 'supplier' in data: product.supplier = data['supplier']
         
@@ -1460,7 +1373,10 @@ def update_product(product_id):
                 'name': product.name,
                 'local_name': product.local_name,
                 'sku': product.sku,
-                'category': product.category
+                'category_id': product.category_id,
+                'branch_id': product.branch_id,
+                'unit_price': product.unit_price,
+                'quantity': product.quantity
             }
         })
     except Exception as e:
@@ -1518,7 +1434,10 @@ def get_product(product_id):
             'size_unit': product.size_unit,
             'pack_quantity': product.pack_quantity,
             'pack_unit': product.pack_unit,
-            'category': product.category,
+            'category_id': product.category_id,
+            'branch_id': product.branch_id,
+            'unit_price': product.unit_price,
+            'quantity': product.quantity,
             'brand': product.brand,
             'supplier': product.supplier
         }

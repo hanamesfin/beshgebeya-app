@@ -8,8 +8,11 @@
         </div>
     </td>
     <td>
-        <span class="glass-pill pill-info" style="font-size: 0.8rem; display: inline-block;">{{ product.category or
-            'Uncategorized' }}</span>
+        {% if product.category_rel %}
+        <span class="glass-pill pill-info" style="font-size: 0.8rem; display: inline-block;">{{ product.category_rel.name }}</span>
+        {% else %}
+        <span class="glass-pill pill-warning" style="font-size: 0.8rem; display: inline-block;">{{ product.category or 'Uncategorized' }}</span>
+        {% endif %}
         <div class="small-text" style="margin-top: 4px;">{{ product.brand or '-' }}</div>
     </td>
     <td>
@@ -24,10 +27,13 @@
         </div>
     </td>
     <td>
-        <small class="product-description"
-            style="display: block; max-width: 250px; white-space: normal; color: var(--gray-600); line-height: 1.4;">{{
-            product.description[:60] }}{% if product.description and product.description|length > 60 %}...{% endif
-            %}</small>
+        <strong>${{ "%.2f"|format(product.unit_price or 0) }}</strong>
+    </td>
+    <td>
+        <span>{{ product.quantity or 0 }}</span>
+    </td>
+    <td>
+        <strong class="text-primary">${{ "%.2f"|format((product.unit_price or 0) * (product.quantity or 0)) }}</strong>
     </td>
     <td>
         <div class="action-buttons">
@@ -52,7 +58,7 @@
 </tr>
 {% else %}
 <tr>
-    <td colspan="6" class="text-center">
+    <td colspan="8" class="text-center">
         <div class="card-empty-state" style="padding: 2rem; border: none; box-shadow: none; background: transparent;">
             <div class="empty-icon-wrapper">
                 <span class="empty-emoji blue-emoji">🔍</span>

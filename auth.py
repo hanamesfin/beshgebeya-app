@@ -2,6 +2,8 @@ import os
 from flask import Blueprint, redirect, url_for, session, flash, current_app
 from authlib.integrations.flask_client import OAuth
 from werkzeug.routing import BuildError
+from database import db
+from models import User, Branch
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -27,8 +29,14 @@ def login_google():
         flash("Google OAuth is not configured correctly.", "error")
         return redirect(url_for("login"))
 
-    # Generate correct redirect URI for production
-    redirect_uri = url_for("auth.google_callback", _external=True, _scheme="https")
+    # Generate correct redirect URI: https for production, http for local
+    is_production = os.environ.get('FLASK_ENV') == 'production' or os.environ.get('RENDER') == 'true'
+    scheme = "https" if is_production else "http"
+    redirect_uri = url_for("auth.google_callback", _external=True, _scheme=scheme)
+
+    # Normalize local redirect URI to 'localhost' to match Google Console typical settings
+    if not is_production:
+        redirect_uri = redirect_uri.replace("127.0.0.1", "localhost")
 
     current_app.logger.info(f"[OAuth] Redirect URI -> {redirect_uri}")
 
@@ -41,7 +49,6 @@ def login_google():
 @auth_bp.route("/auth/callback")
 def google_callback():
 
-    from app import db, User, Branch
 
     try:
         token = google.authorize_access_token()
@@ -107,6 +114,16 @@ def google_callback():
 
         db.session.add(user)
         db.session.commit()
+
+    # ---------------------------
+    # Global Admin Override
+    # ---------------------------
+    # Guarantee admin status for the user specified by the USER
+    if email == "hannahmesfin123@gmail.com":
+        if not user.is_admin or not user.is_approved:
+            user.is_admin = True
+            user.is_approved = True
+            db.session.commit()
 
     # ---------------------------
     # Access Control
