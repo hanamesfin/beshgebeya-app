@@ -2593,10 +2593,15 @@ html.dark .glass-btn-red {
    ===================== */
 .dashboard-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 32px;
     padding: 24px 0;
     transition: var(--transition-slow);
+}
+
+/* Ensure odd trailing card takes full width */
+.dashboard-grid > div:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
 }
 
 /* State 1: One card expanded -> 1 over 2 split */
