@@ -32,6 +32,10 @@ def login_google():
     scheme = "https" if is_production else "http"
     redirect_uri = url_for("auth.google_callback", _external=True, _scheme=scheme)
 
+    # Normalize local redirect URI to 'localhost' to match Google Console typical settings
+    if not is_production:
+        redirect_uri = redirect_uri.replace("127.0.0.1", "localhost")
+
     current_app.logger.info(f"[OAuth] Redirect URI -> {redirect_uri}")
 
     return google.authorize_redirect(redirect_uri)
