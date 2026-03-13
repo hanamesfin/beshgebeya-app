@@ -27,8 +27,10 @@ def login_google():
         flash("Google OAuth is not configured correctly.", "error")
         return redirect(url_for("login"))
 
-    # Generate correct redirect URI for production
-    redirect_uri = url_for("auth.google_callback", _external=True, _scheme="https")
+    # Generate correct redirect URI: https for production, http for local
+    is_production = os.environ.get('FLASK_ENV') == 'production' or os.environ.get('RENDER') == 'true'
+    scheme = "https" if is_production else "http"
+    redirect_uri = url_for("auth.google_callback", _external=True, _scheme=scheme)
 
     current_app.logger.info(f"[OAuth] Redirect URI -> {redirect_uri}")
 

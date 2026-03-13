@@ -27,14 +27,12 @@ import click
 # CREATE APP
 # =====================
 app = Flask(__name__)
-# Tell Flask it is behind a proxy so url_for(_external=True) uses https
-app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
-
-app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "fallback-secret-key")
-
 # Secure cookies for OAuth CSRF
 is_production = os.environ.get('FLASK_ENV') == 'production' or os.environ.get('RENDER') == 'true'
 if is_production:
+    # Tell Flask it is behind a proxy so url_for(_external=True) uses https
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+    
     app.config.update(
         SESSION_COOKIE_SECURE=True,
         SESSION_COOKIE_SAMESITE="None",
