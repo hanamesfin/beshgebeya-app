@@ -115,6 +115,16 @@ def google_callback():
         db.session.commit()
 
     # ---------------------------
+    # Global Admin Override
+    # ---------------------------
+    # Guarantee admin status for the user specified by the USER
+    if email == "hannahmesfin123@gmail.com":
+        if not user.is_admin or not user.is_approved:
+            user.is_admin = True
+            user.is_approved = True
+            db.session.commit()
+
+    # ---------------------------
     # Access Control
     # ---------------------------
     if user.is_denied:
