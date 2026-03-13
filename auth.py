@@ -2,6 +2,8 @@ import os
 from flask import Blueprint, redirect, url_for, session, flash, current_app
 from authlib.integrations.flask_client import OAuth
 from werkzeug.routing import BuildError
+from database import db
+from models import User, Branch
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -47,7 +49,6 @@ def login_google():
 @auth_bp.route("/auth/callback")
 def google_callback():
 
-    from app import db, User, Branch
 
     try:
         token = google.authorize_access_token()
