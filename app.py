@@ -27,6 +27,8 @@ import click
 # CREATE APP
 # =====================
 app = Flask(__name__)
+app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "fallback-secret-key")
+
 # Secure cookies for OAuth CSRF
 is_production = os.environ.get('FLASK_ENV') == 'production' or os.environ.get('RENDER') == 'true'
 if is_production:
