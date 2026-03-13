@@ -3,7 +3,7 @@
 {% block title %}Inventory - BeshGebeya{% endblock %}
 
 {% block content %}
-<div class="container" x-data="{ 
+<div x-data="{ 
     showForm: false,
     toggleForm() {
         this.showForm = !this.showForm;
@@ -131,7 +131,7 @@
         </div>
     </div>
 
-    <div class="page-glow-section">
+    <div class="page-glow-section" style="padding-top: 10px;">
         <div class="section crystal-shimmer" style="position: relative;">
             <!-- Pulsing Help Point -->
             <div class="highlight-point" style="top: 20px; right: 20px;">
@@ -153,8 +153,7 @@
                         <tr>
                             <th style="width: 20%;" data-en="Product" data-am="ምርት">Product</th>
                             <th style="width: 15%;" data-en="Barcode / SKU" data-am="ባርኮድ / SKU">Barcode / SKU</th>
-                            <th style="width: 10%;" data-en="Size / Pack" data-am="መጠን / ጥቅል">Size / Pack</th>
-                            <th style="width: 10%;" data-en="Extra" data-am="ተጨማሪ">Extra</th>
+                            <th style="width: 20%;" data-en="Specs & Extra" data-am="ዝርዝር እና ተጨማሪ">Specs & Extra</th>
                             <th style="width: 10%;" data-en="Qty" data-am="ብዛት">Qty</th>
                             <th style="width: 10%;" data-en="Value" data-am="ዋጋ">Value</th>
                             <th style="width: 10%;" data-en="Expiry" data-am="የማብቂያ ቀን">Expiry</th>
@@ -182,14 +181,11 @@
                             </td>
                             <td>
                                 <div class="specs-cell">
-                                    {% if item.unit_size %}<span>{{ item.unit_size }} {{ item.unit_measure }}</span>{%
-                                    endif
-                                    %}
-                                    {% if item.pack_qty and item.pack_qty > 1 %}<span class="divider">|</span><span>{{
-                                        item.pack_qty }} {{ item.pack_unit }}</span>{% endif %}
+                                    {% if item.unit_size %}<span>{{ item.unit_size }} {{ item.unit_measure }}</span>{% endif %}
+                                    {% if item.pack_qty and item.pack_qty > 1 %}<span class="divider">|</span><span>{{ item.pack_qty }} {{ item.pack_unit }}</span>{% endif %}
+                                    {% if item.extra_info %}<div class="small-text">{{ item.extra_info }}</div>{% endif %}
                                 </div>
                             </td>
-                            <td><small>{{ item.extra_info or '-' }}</small></td>
                             <td>
                                 <strong
                                     class="{% if item.quantity_on_hand <= item.threshold_min %}text-danger{% endif %}">
