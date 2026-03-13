@@ -211,6 +211,66 @@
             {% endif %}
         </div>
     </div>
+
+    <!-- Card 4: Slow Moving Products (6+ Months) -->
+    <div class="crystal-card" data-card="slow" onclick="focusCard(this)">
+        <div class="card-title">
+            <span class="icon-circle blue-emoji">🐢</span>
+            <div class="title-text">
+                <h3>Slow Moving Items</h3>
+                <p class="subtitle">In Stock for 6+ Months</p>
+            </div>
+            <span class="glass-pill {% if slow_moving %}pill-warning{% endif %}">
+                {{ slow_moving | length if slow_moving else 0 }} items
+            </span>
+        </div>
+
+        <div class="card-content">
+            {% if slow_moving %}
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>Qty</th>
+                            <th>Value</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in slow_moving[:8] %}
+                        {% set total_value = (item.product.unit_price or 0) * (item.quantity_on_hand or 0) %}
+                        <tr>
+                            <td>
+                                <strong>{{ item.product.name }}</strong>
+                                <div class="small-text">Price: ${{ item.product.unit_price or 0 }}</div>
+                            </td>
+                            <td>{{ item.quantity_on_hand }}</td>
+                            <td>${{ "%.2f"|format(total_value) }}</td>
+                            <td>
+                                <form method="POST" action="{{ url_for('delete_inventory', id=item.id) }}" 
+                                      onsubmit="return confirm('Delete this record?')">
+                                    <button class="btn-action-delete" style="background: none; border: none; cursor: pointer;">
+                                        <span class="blue-emoji">🗑️</span>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="card-empty-state">
+                <div class="empty-icon-wrapper">
+                    <span class="empty-emoji blue-emoji">⚡</span>
+                </div>
+                <p class="empty-headline">High Turnover</p>
+                <p class="empty-subtext">No products have been sitting in stock for over 6 months.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
 </div>
 
 <script>

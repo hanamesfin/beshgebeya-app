@@ -21,17 +21,46 @@
     <!-- Persistent Sticky Search -->
     <div class="sticky-search-container">
         <div class="crystal-card"
-            style="padding: 15px 20px; display: flex; align-items: center; gap: 15px; margin-bottom: 20px; border-radius: var(--radius-full);">
-            <span class="blue-emoji" style="font-size: 1.5rem;">🔍</span>
-            <input type="text" id="search-input" name="q" placeholder="Search inventory name, batch, or SKU..."
-                hx-get="/api/search/inventory" hx-trigger="keyup changed delay:300ms, search"
-                hx-target="#inventory-table-body" hx-swap="innerHTML transition:true"
-                data-en="Search inventory name, batch, or SKU..." data-am="የዕቃዎች ስም፣ ባች ወይም SKU ይፈልጉ..."
-                style="flex: 1; border: none; background: transparent; font-size: 1.1rem; padding: 10px; outline: none;">
-            <button id="start-camera-btn" onclick="startCamera()" class="icon-btn-blue" title="Camera Scanner"
-                style="border-radius: var(--radius-full); width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;">
-                <span class="blue-emoji">📷</span>
-            </button>
+            style="padding: 15px 20px; display: flex; align-items: center; gap: 15px; margin-bottom: 20px; border-radius: var(--radius-full); flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 10px; flex: 1; min-width: 300px;">
+                <span class="blue-emoji" style="font-size: 1.5rem;">🔍</span>
+                <input type="text" id="search-input" name="q" placeholder="Search inventory name, batch, or SKU..."
+                    hx-get="/api/search/inventory" 
+                    hx-include="#category-filter, #branch-filter"
+                    hx-trigger="keyup changed delay:300ms, search"
+                    hx-target="#inventory-table-body" hx-swap="innerHTML transition:true"
+                    data-en="Search inventory name, batch, or SKU..." data-am="የዕቃዎች ስም፣ ባች ወይም SKU ይፈልጉ..."
+                    style="flex: 1; border: none; background: transparent; font-size: 1.1rem; padding: 10px; outline: none;">
+            </div>
+
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <select id="category-filter" name="category_id" 
+                        hx-get="/api/search/inventory" 
+                        hx-include="#search-input, #branch-filter"
+                        hx-target="#inventory-table-body"
+                        style="padding: 8px 15px; border-radius: var(--radius-full); border: 1px solid var(--gray-200); background: var(--glass-bg); outline: none;">
+                    <option value="">All Categories</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat.id }}">{{ cat.name }}</option>
+                    {% endfor %}
+                </select>
+
+                <select id="branch-filter" name="branch_id" 
+                        hx-get="/api/search/inventory" 
+                        hx-include="#search-input, #category-filter"
+                        hx-target="#inventory-table-body"
+                        style="padding: 8px 15px; border-radius: var(--radius-full); border: 1px solid var(--gray-200); background: var(--glass-bg); outline: none;">
+                    <option value="">All Locations</option>
+                    {% for branch in branches %}
+                    <option value="{{ branch.id }}">{{ branch.name }}</option>
+                    {% endfor %}
+                </select>
+
+                <button id="start-camera-btn" onclick="startCamera()" class="icon-btn-blue" title="Camera Scanner"
+                    style="border-radius: var(--radius-full); width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;">
+                    <span class="blue-emoji">📷</span>
+                </button>
+            </div>
         </div>
         <div id="reader"
             style="width: 100%; max-width: 500px; margin: 0 auto; border-radius: 12px; overflow: hidden; display: none;">
@@ -122,11 +151,12 @@
                 <table class="data-table">
                     <thead>
                         <tr>
-                            <th style="width: 25%;" data-en="Product" data-am="ምርት">Product</th>
+                            <th style="width: 20%;" data-en="Product" data-am="ምርት">Product</th>
                             <th style="width: 15%;" data-en="Barcode / SKU" data-am="ባርኮድ / SKU">Barcode / SKU</th>
-                            <th style="width: 15%;" data-en="Size / Pack" data-am="መጠን / ጥቅል">Size / Pack</th>
-                            <th style="width: 20%;" data-en="Extra Info" data-am="ተጨማሪ መረጃ">Extra Info</th>
+                            <th style="width: 10%;" data-en="Size / Pack" data-am="መጠን / ጥቅል">Size / Pack</th>
+                            <th style="width: 10%;" data-en="Extra" data-am="ተጨማሪ">Extra</th>
                             <th style="width: 10%;" data-en="Qty" data-am="ብዛት">Qty</th>
+                            <th style="width: 10%;" data-en="Value" data-am="ዋጋ">Value</th>
                             <th style="width: 10%;" data-en="Expiry" data-am="የማብቂያ ቀን">Expiry</th>
                             <th style="width: 10%;" data-en="Status" data-am="ሁኔታ">Status</th>
                             <th style="width: 5%;" data-en="Actions" data-am="ድርጊቶች">Actions</th>

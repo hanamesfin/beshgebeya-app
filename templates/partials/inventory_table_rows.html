@@ -1,5 +1,6 @@
 {% for item in inventory %}
 {% set days_left = (item.expiry_date - now).days if item.expiry_date else None %}
+{% set total_value = (item.product.unit_price or 0) * (item.quantity_on_hand or 0) %}
 <tr class="stagger-reveal {% if days_left and days_left < 0 %}row-expired{% elif days_left and days_left <= 7 %}row-expiring{% elif item.quantity_on_hand <= item.threshold_min %}row-warning{% endif %}"
     style="animation-delay: {{ loop.index0 * 0.05 }}s">
     <td>
@@ -31,6 +32,9 @@
         </strong>
     </td>
     <td>
+        <strong class="text-primary">${{ "%.2f"|format(total_value) }}</strong>
+    </td>
+    <td>
         {% if item.expiry_date %}
         {{ item.expiry_date.strftime('%Y-%m-%d') }}
         {% else %}
@@ -44,11 +48,11 @@
                 {% elif days_left and days_left <= 30 %} <span class="badge badge-warning" data-en="Expiring Soon"
                     data-am="ሊያልቅ ነው">Expiring Soon</span>
                     {% endif %}
-
+ 
                     {% if item.quantity_on_hand <= item.product.low_stock_threshold|default(10) %} <span
                         class="badge badge-low_stock" data-en="Low Stock" data-am="አነስተኛ ክምችት">Low Stock</span>
                         {% endif %}
-
+ 
                         {% if not (days_left and days_left < 0) and item.quantity_on_hand>
                             item.product.low_stock_threshold|default(10) %}
                             <span class="badge badge-available" data-en="Available" data-am="ይገኛል">Available</span>

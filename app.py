@@ -118,6 +118,13 @@ class User(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 
+class Category(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), unique=True, nullable=False)
+    
+    products = db.relationship('Product', backref='category_rel', lazy=True)
+
+
 class Product(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), nullable=True)
@@ -137,7 +144,13 @@ class Product(db.Model):
     pack_quantity = db.Column(db.Integer)
     pack_unit = db.Column(db.String(20))
     
-    category = db.Column(db.String(100), nullable=True)
+    category = db.Column(db.String(100), nullable=True) # Keeping for legacy/migration
+    category_id = db.Column(db.Integer, db.ForeignKey('category.id'))
+    branch_id = db.Column(db.Integer, db.ForeignKey('branch.id')) # Default/Primary location
+    
+    unit_price = db.Column(db.Float, default=0.0)
+    quantity = db.Column(db.Float, default=0.0) # Overall stock tracking
+    
     brand = db.Column(db.String(100))
     supplier = db.Column(db.String(100))
     
@@ -247,6 +260,13 @@ def initialize_database(app: Flask):
             db.session.commit()
             print("[DB INIT] Default admin user created")
             
+        # Seed Categories safely
+        default_categories = ["Food", "Commodities", "Home Care", "Personal Care"]
+        for cat_name in default_categories:
+            if not Category.query.filter_by(name=cat_name).first():
+                db.session.add(Category(name=cat_name))
+        db.session.commit()
+
         # Ensure all existing users are approved during this transition (optional but helpful)
         unapproved_users = User.query.filter_by(is_approved=None).all()
         if unapproved_users:
@@ -573,9 +593,12 @@ def update_profile():
 @login_required
 def search_products_htmx():
     query = request.args.get('q', '').strip()
-    if not query:
-        products = Product.query.order_by(Product.id.desc()).limit(100).all()
-    else:
+    category_id = request.args.get('category_id', type=int)
+    branch_id = request.args.get('branch_id', type=int)
+    
+    products_query = Product.query
+    
+    if query:
         search_filter = db.or_(
             Product.name.ilike(f'%{query}%'),
             Product.local_name.ilike(f'%{query}%'),
@@ -584,20 +607,27 @@ def search_products_htmx():
             Product.category.ilike(f'%{query}%'),
             Product.brand.ilike(f'%{query}%')
         )
-        products = Product.query.filter(search_filter).order_by(Product.id.desc()).all()
+        products_query = products_query.filter(search_filter)
     
+    if category_id:
+        products_query = products_query.filter(Product.category_id == category_id)
+    if branch_id:
+        products_query = products_query.filter(Product.branch_id == branch_id)
+        
+    products = products_query.order_by(Product.id.desc()).all()
     return render_template('partials/product_table_rows.html', products=products)
 
 @app.route('/api/search/inventory')
 @login_required
 def search_inventory_htmx():
     query = request.args.get('q', '').strip()
+    category_id = request.args.get('category_id', type=int)
+    branch_id = request.args.get('branch_id', type=int)
     today = datetime.utcnow()
     
-    if not query:
-        inventory = Inventory.query.order_by(Inventory.id.desc()).limit(100).all()
-    else:
-        # Search in product names and codes
+    inventory_query = Inventory.query.join(Product)
+    
+    if query:
         search_filter = db.or_(
             Product.name.ilike(f'%{query}%'),
             Product.local_name.ilike(f'%{query}%'),
@@ -606,13 +636,28 @@ def search_inventory_htmx():
             Inventory.batch_number.ilike(f'%{query}%'),
             Inventory.extra_info.ilike(f'%{query}%')
         )
-        inventory = Inventory.query.join(Product).filter(search_filter).order_by(Inventory.id.desc()).all()
+        inventory_query = inventory_query.filter(search_filter)
     
+    if category_id:
+        inventory_query = inventory_query.filter(Product.category_id == category_id)
+    if branch_id:
+        inventory_query = inventory_query.filter(Inventory.branch_id == branch_id)
+        
+    inventory = inventory_query.order_by(Inventory.id.desc()).all()
     return render_template('partials/inventory_table_rows.html', inventory=inventory, now=today)
 
 @app.route('/help')
 def help_page():
     return render_template('help.html')
+
+@app.route('/delete_inventory/<int:id>', methods=['POST'])
+@login_required
+def delete_inventory(id):
+    item = Inventory.query.get_or_404(id)
+    db.session.delete(item)
+    db.session.commit()
+    flash("Item deleted successfully", "success")
+    return redirect(url_for('dashboard'))
 
 @app.route('/')
 @login_required
@@ -671,12 +716,20 @@ def dashboard():
 
     user = User.query.get(session['user_id'])
 
+    # Slow Moving Products (6+ Months)
+    six_months_ago = today - timedelta(days=180)
+    slow_moving = Inventory.query.filter(
+        Inventory.entry_date <= six_months_ago,
+        Inventory.quantity_on_hand > 0
+    ).order_by(Inventory.entry_date).all()
+
     return render_template(
         'dashboard.html',
         user=user,
         alerts=alerts,
         expiring_0_90=expiring_0_90,
         expiring_180=expiring_180,
+        slow_moving=slow_moving,
         now=today,
         # FEFO Metrics
         expiry_labels=expiry_labels,
@@ -752,7 +805,10 @@ def products():
                 size_unit=size_unit,
                 pack_quantity=pack_qty,
                 pack_unit=pack_unit,
-                category=request.form.get('category'),
+                category_id=int(request.form.get('category_id')) if request.form.get('category_id') else None,
+                branch_id=int(request.form.get('branch_id')) if request.form.get('branch_id') else None,
+                unit_price=float(request.form.get('unit_price')) if request.form.get('unit_price') else 0.0,
+                quantity=float(request.form.get('quantity')) if request.form.get('quantity') else 0.0,
                 brand=request.form.get('brand', ''),
                 supplier=request.form.get('supplier', '')
             )
@@ -764,7 +820,9 @@ def products():
         return redirect(url_for('products'))
     
     products_list = Product.query.order_by(Product.id.desc()).limit(100).all()
-    return render_template('products.html', products=products_list)
+    categories = Category.query.all()
+    branches = Branch.query.all()
+    return render_template('products.html', products=products_list, categories=categories, branches=branches)
 
 @app.route('/inventory', methods=['GET', 'POST'])
 @login_required
@@ -1406,7 +1464,10 @@ def update_product(product_id):
         if 'barcode' in data: product.barcode = sanitize_unique_field(data['barcode'])
         if 'local_code' in data: product.local_code = sanitize_unique_field(data['local_code'])
         if 'internal_code' in data: product.internal_code = data['internal_code']
-        if 'category' in data: product.category = data['category']
+        if 'category_id' in data: product.category_id = int(data['category_id']) if data['category_id'] else None
+        if 'branch_id' in data: product.branch_id = int(data['branch_id']) if data['branch_id'] else None
+        if 'unit_price' in data: product.unit_price = float(data['unit_price']) if data['unit_price'] else 0.0
+        if 'quantity' in data: product.quantity = float(data['quantity']) if data['quantity'] else 0.0
         if 'brand' in data: product.brand = data['brand']
         if 'supplier' in data: product.supplier = data['supplier']
         
@@ -1460,7 +1521,10 @@ def update_product(product_id):
                 'name': product.name,
                 'local_name': product.local_name,
                 'sku': product.sku,
-                'category': product.category
+                'category_id': product.category_id,
+                'branch_id': product.branch_id,
+                'unit_price': product.unit_price,
+                'quantity': product.quantity
             }
         })
     except Exception as e:
@@ -1518,7 +1582,10 @@ def get_product(product_id):
             'size_unit': product.size_unit,
             'pack_quantity': product.pack_quantity,
             'pack_unit': product.pack_unit,
-            'category': product.category,
+            'category_id': product.category_id,
+            'branch_id': product.branch_id,
+            'unit_price': product.unit_price,
+            'quantity': product.quantity,
             'brand': product.brand,
             'supplier': product.supplier
         }
