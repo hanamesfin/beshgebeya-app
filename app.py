@@ -652,7 +652,7 @@ def help_page():
 
 @app.route('/delete_inventory/<int:id>', methods=['POST'])
 @login_required
-def delete_inventory(id):
+def delete_inventory_form(id):
     item = Inventory.query.get_or_404(id)
     db.session.delete(item)
     db.session.commit()
@@ -1433,7 +1433,7 @@ def update_inventory(inventory_id):
 
 @app.route('/api/inventory/<int:inventory_id>', methods=['DELETE'])
 @login_required
-def delete_inventory(inventory_id):
+def delete_inventory_api(inventory_id):
     """Delete an inventory record via API"""
     try:
         inv = Inventory.query.get_or_404(inventory_id)

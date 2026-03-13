@@ -248,7 +248,7 @@
                             <td>{{ item.quantity_on_hand }}</td>
                             <td>${{ "%.2f"|format(total_value) }}</td>
                             <td>
-                                <form method="POST" action="{{ url_for('delete_inventory', id=item.id) }}" 
+                                <form method="POST" action="{{ url_for('delete_inventory_form', id=item.id) }}" 
                                       onsubmit="return confirm('Delete this record?')">
                                     <button class="btn-action-delete" style="background: none; border: none; cursor: pointer;">
                                         <span class="blue-emoji">🗑️</span>
