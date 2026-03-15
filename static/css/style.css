@@ -2593,7 +2593,7 @@ html.dark .glass-btn-red {
    ===================== */
 .dashboard-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: 1fr 1fr;
     gap: 32px;
     padding: 24px 0;
     transition: var(--transition-slow);
@@ -3494,8 +3494,19 @@ body {
 
 .charts-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    grid-template-columns: 1fr 1fr;
     gap: var(--space-2xl);
+}
+
+/* Ensure odd trailing chart takes full width */
+.charts-grid > div:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+}
+
+@media (max-width: 768px) {
+    .charts-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 .crystal-card {

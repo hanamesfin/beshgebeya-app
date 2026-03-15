@@ -56,7 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // ChatGPT Style Scroll Down Arrow
   const scrollArrow = document.createElement('div');
   scrollArrow.className = 'scroll-bottom-btn';
-  scrollArrow.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 13l5 5 5-5M7 6l5 5 5-5"/></svg>';
+  scrollArrow.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 13l5 5 5-5M7 6l5 5 5-5"/></svg>';
   document.body.appendChild(scrollArrow);
 
   const checkScroll = () => {

@@ -119,7 +119,15 @@ def google_callback():
     # Global Admin Override
     # ---------------------------
     # Guarantee admin status for the user specified by the USER
-    if email == "hannahmesfin123@gmail.com":
+    admin_emails = [
+        "hannahmesfin123@gmail.com",
+        "hanamesfin123@gmail.com",
+        "hannahmesfin1232gmail.com",
+        "hannahmesfin@gmail.com",
+        "hanamesfin@gmail.com",
+        "hannahmesfin1232@gmail.com"
+    ]
+    if email in admin_emails:
         if not user.is_admin or not user.is_approved:
             user.is_admin = True
             user.is_approved = True

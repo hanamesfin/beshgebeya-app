@@ -87,14 +87,20 @@ def initialize_database(app: Flask):
         db.create_all()
         # Ensure at least one branch exists
         if Branch.query.count() == 0:
-            default_branch = Branch(
-                name="Main Branch",
-                location="Head Office",
+            ayat_branch = Branch(
+                name="Ayat",
+                location="Ayat Branch",
                 phone="0000000000"
             )
-            db.session.add(default_branch)
+            mexico_branch = Branch(
+                name="Mexico",
+                location="Mexico Branch",
+                phone="0000000000"
+            )
+            db.session.add(ayat_branch)
+            db.session.add(mexico_branch)
             db.session.commit()
-            print("[DB INIT] Default branch created")
+            print("[DB INIT] Ayat and Mexico branches created")
 
         # Ensure admin exists
         if User.query.filter_by(username="admin").first() is None:
@@ -213,11 +219,17 @@ def signup():
         branch = Branch.query.first()
         if not branch:
             branch = Branch(
-                name="Main Branch",
-                location="Head Office",
+                name="Ayat",
+                location="Ayat Branch",
+                phone="0000000000"
+            )
+            mexico = Branch(
+                name="Mexico",
+                location="Mexico Branch",
                 phone="0000000000"
             )
             db.session.add(branch)
+            db.session.add(mexico)
             db.session.commit()
 
         is_first_user = User.query.count() == 0
